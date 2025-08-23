@@ -1,0 +1,26 @@
+{
+  "name": "e2ee-chat-backend",
+  "version": "1.0.0",
+  "description": "Encrypted chat backend using JavaScript, Express, and Socket.IO",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon",
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.17.0",
+    "socket.io": "^4.7.2",
+    "tweetnacl": "^1.0.3",
+    "ws": "8.18.3",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.3"
+  }
+}
