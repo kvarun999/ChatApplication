@@ -6,6 +6,7 @@ import nacl from "tweetnacl";
 import connectDB from "./config/db.js";
 import authRoutes from "./routes/auth.route.js";
 import cookieParser from "cookie-parser";
+import userRoutes from "./routes/user.route.js";
 
 const app = express();
 app.use(express.json());
@@ -25,6 +26,8 @@ app.get("/", (req, res) => {
 connectDB();
 
 app.use("/api/auth", authRoutes);
+
+app.use("/api/users", userRoutes);
 
 const server = http.createServer(app);
 
