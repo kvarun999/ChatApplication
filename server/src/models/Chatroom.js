@@ -15,6 +15,9 @@ const chatRoomSchema = new mongoose.Schema(
       enum: ["one_to_one", "group"],
       default: "one_to_one",
     },
+    participantPair: {
+      type: String,
+    },
     lastMessage: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Message",
@@ -36,19 +39,16 @@ const chatRoomSchema = new mongoose.Schema(
       enum: ["active", "blocked"],
       default: "active",
     },
-    // If status is 'blocked', this specifies who did the blocking
     blockedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
-    // Array of users who have muted this chat's notifications
     mutedBy: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
       },
     ],
-    // Array of users who have archived this chat (hidden from main list)
     archivedBy: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -59,6 +59,40 @@ const chatRoomSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-chatRoomSchema.index({ participants: 1 }, { unique: true });
+// Only keep the participantPair unique index (remove the participants index)
+chatRoomSchema.index(
+  { participantPair: 1 },
+  {
+    unique: true,
+    sparse: true,
+  }
+);
+
+// Pre-save middleware to ensure participants are sorted and create participantPair
+chatRoomSchema.pre("save", function (next) {
+  if (
+    this.type === "one_to_one" &&
+    this.participants &&
+    this.participants.length === 2
+  ) {
+    // Sort participants by string representation
+    const sortedParticipants = this.participants
+      .map((p) => p.toString())
+      .sort((a, b) => a.localeCompare(b))
+      .map((id) => new mongoose.Types.ObjectId(id));
+
+    // Update the participants array with sorted ObjectIds
+    this.participants = sortedParticipants;
+
+    // Create participantPair from sorted string IDs
+    this.participantPair = sortedParticipants
+      .map((p) => p.toString())
+      .join("-");
+  } else {
+    // For group chats, don't set participantPair
+    this.participantPair = undefined;
+  }
+  next();
+});
 
 export default mongoose.model("ChatRoom", chatRoomSchema);
