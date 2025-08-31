@@ -1,5 +1,5 @@
 import api from "../lib/axios";
-import { generateKeys } from "./crypto.service";
+import { generateKeys } from "../utils/keyUtils";
 
 // Define the shape of the registration data
 interface RegistrationData {

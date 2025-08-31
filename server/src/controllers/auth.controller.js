@@ -68,8 +68,6 @@ export const register = async (req, res) => {
     // Set the refresh token in an HTTP-only cookie for security
     res.cookie("jwt", refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production", // Use secure cookies in production
-      sameSite: "None",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
@@ -125,8 +123,6 @@ export const login = async (req, res) => {
     // Set the new refresh token in the cookie
     res.cookie("jwt", refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "None",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
@@ -151,7 +147,7 @@ export const logout = async (req, res) => {
 
   res.clearCookie("jwt", {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: true,
     sameSite: "None",
   });
 
@@ -208,8 +204,6 @@ export const refresh = async (req, res) => {
 
         res.cookie("jwt", newRefreshToken, {
           httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "None",
           maxAge: 7 * 24 * 60 * 60 * 1000,
         });
 

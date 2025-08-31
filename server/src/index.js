@@ -8,7 +8,7 @@ import connectDB from "./config/db.js";
 import authRoutes from "./routes/auth.route.js";
 import userRoutes from "./routes/user.route.js";
 import chatRoutes from "./routes/chat.route.js";
-import { initializeSocketServer } from "./socket/socketHandler.js"; // 👈 Import the new handler
+import { initializeSocketServer } from "./socket/sockethandler.js"; // 👈 Import the new handler
 
 dotenv.config();
 
@@ -24,7 +24,7 @@ app.use(
 app.use(express.json());
 app.use(cookieParser()); // 👈 Use cookie-parser to handle cookies
 
-const PORT = 3500;
+const PORT = 3000;
 
 // --- Database and API Routes ---
 connectDB();

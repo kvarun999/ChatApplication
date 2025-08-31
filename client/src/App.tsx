@@ -5,31 +5,18 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
-import { AuthProvider, useAuth } from "./context/AuthProvider"; // 👈 Import the provider
+import { AuthProvider, useAuth } from "./context/AuthProvider";
+import { SocketProvider } from "./context/SocketProvider";
 import { AuthPage } from "./features/auth/pages/AuthPage";
+import { ChatPage } from "./features/chat/pages/ChatPage";
 
-const HomePage = () => {
-  const { logout } = useAuth();
-  return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-      <h1 className="text-4xl font-bold text-green-600">
-        Welcome to the Chat App!
-        <button
-          onClick={logout}
-          className="mt-4 bg-red-500 text-white font-bold py-2 px-4 rounded"
-        >
-          Logout
-        </button>
-      </h1>
-    </div>
-  );
-};
-
+// ✅ Protected route wrapper
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated } = useAuth();
   return isAuthenticated ? <>{children}</> : <Navigate to="/auth" replace />;
 };
 
+// ✅ Redirect if already logged in
 const AuthRedirector = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated } = useAuth();
   return isAuthenticated ? <Navigate to="/" replace /> : <>{children}</>;
@@ -37,7 +24,6 @@ const AuthRedirector = ({ children }: { children: React.ReactNode }) => {
 
 function App() {
   return (
-    // 👇 Wrap your application with the AuthProvider
     <AuthProvider>
       <Router>
         <Routes>
@@ -45,7 +31,9 @@ function App() {
             path="/"
             element={
               <ProtectedRoute>
-                <HomePage />
+                <SocketProvider>
+                  <ChatPage />
+                </SocketProvider>
               </ProtectedRoute>
             }
           />

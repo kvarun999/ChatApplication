@@ -1,53 +1,96 @@
-// src/context/AuthProvider.tsx
 import React, {
   createContext,
   useState,
   useContext,
   ReactNode,
   useMemo,
+  useEffect,
 } from "react";
+import { User } from "../types/user.types";
+import { getMe } from "../services/user.service";
 
-// Define the shape of the context's value
 interface AuthContextType {
   accessToken: string | null;
   isAuthenticated: boolean;
-  login: (token: string) => void;
+  user: User | null;
+  isLoading: boolean; // To handle initial load state
+  login: (token: string) => Promise<void>;
   logout: () => void;
 }
 
-// Create the context with an initial undefined value
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Create the provider component
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [accessToken, setAccessToken] = useState<string | null>(() => {
-    // Initialize state from localStorage to keep the user logged in
-    return localStorage.getItem("accessToken");
-  });
+  const [accessToken, setAccessToken] = useState<string | null>(
+    localStorage.getItem("accessToken")
+  );
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true); // Start loading on init
 
-  const login = (token: string) => {
-    setAccessToken(token);
+  // Effect to check for existing token and fetch user on app start
+  useEffect(() => {
+    const initializeAuth = async () => {
+      if (accessToken) {
+        try {
+          // Use the request interceptor in axios.ts to add the token
+          const userData = await getMe();
+          setUser(userData);
+        } catch (error) {
+          // Token is invalid or expired, clear it
+          console.error("Session expired, logging out.");
+          setAccessToken(null);
+          setUser(null);
+          localStorage.removeItem("accessToken");
+        }
+      }
+      setIsLoading(false);
+    };
+    initializeAuth();
+  }, []); // Run only once on app mount
+
+  const login = async (token: string) => {
+    // Set token immediately for the interceptor to use
     localStorage.setItem("accessToken", token);
+    setAccessToken(token);
+
+    // After setting the token, fetch the user data
+    try {
+      const userData = await getMe();
+      setUser(userData);
+    } catch (error) {
+      console.error("Failed to fetch user after login", error);
+      // If user fetch fails, logout to clear the bad state
+      logout();
+    }
   };
 
   const logout = () => {
     setAccessToken(null);
+    setUser(null);
     localStorage.removeItem("accessToken");
-    // We will later call the backend's /logout endpoint here
+    // In a real app, you might also call the /api/auth/logout endpoint
   };
 
-  // Use useMemo to prevent re-creating the context value on every render
   const authContextValue = useMemo(
     () => ({
       accessToken,
-      isAuthenticated: !!accessToken,
+      isAuthenticated: !!accessToken && !!user,
+      user,
+      isLoading,
       login,
       logout,
     }),
-    [accessToken]
+    [accessToken, user, isLoading]
   );
 
-  //console.log(authContextValue);
+  // Render a loading state while we verify the token on app load
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        Loading session...
+      </div>
+    );
+  }
 
   return (
     <AuthContext.Provider value={authContextValue}>
@@ -56,7 +99,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-// Create a custom hook for easy access to the context
+// Custom hook remains the same
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
