@@ -19,7 +19,15 @@ export const generateKeys = async () => {
 
 // Decode Base64 → Uint8Array (raw bytes)
 export const decodeKey = (keyBase64: string): Uint8Array => {
-  return sodium.from_base64(keyBase64);
+  if (!keyBase64 || typeof keyBase64 !== "string" || keyBase64.trim() === "") {
+    throw new Error("Missing key in localStorage / invalid key string.");
+  }
+  try {
+    return sodium.from_base64(keyBase64);
+  } catch {
+    console.error("Invalid Base64 key:", keyBase64);
+    throw new Error("Invalid Base64 key.");
+  }
 };
 
 // Encode Uint8Array → Base64 string (for DB/transport)

@@ -1,6 +1,7 @@
 import ChatRoom from "../models/Chatroom.js";
 import User from "../models/User.js";
 import mongoose from "mongoose";
+import Message from "../models/Message.js";
 
 export const createChatRoom = async (req, res) => {
   const { recipientId } = req.body;
@@ -93,6 +94,45 @@ export const getChatRooms = async (req, res) => {
     res.status(200).json(chatRooms);
   } catch (err) {
     console.error("Error fetching chat rooms:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/**
+ * Fetches all messages for a specific chat room
+ */
+export const getChatMessages = async (req, res) => {
+  const { chatroomId } = req.params;
+  const currentUserId = req.userId;
+
+  try {
+    // First, verify that the user is a participant in this chat room
+    const chatRoom = await ChatRoom.findById(chatroomId);
+
+    if (!chatRoom) {
+      return res.status(404).json({ message: "Chat room not found" });
+    }
+
+    // Check if current user is a participant
+    const isParticipant = chatRoom.participants.some(
+      (participantId) => participantId.toString() === currentUserId.toString()
+    );
+
+    if (!isParticipant) {
+      return res.status(403).json({
+        message: "Access denied. You are not a participant in this chat room.",
+      });
+    }
+
+    // Fetch all messages for this chat room, sorted by creation time
+    const messages = await Message.find({ chatroomId })
+      .sort({ createdAt: 1 }) // Oldest first
+      .populate("sender", "username publicKey") // Populate sender info
+      .exec();
+
+    res.status(200).json(messages);
+  } catch (err) {
+    console.error("Error fetching chat messages:", err);
     res.status(500).json({ message: "Internal server error" });
   }
 };

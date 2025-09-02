@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from "./context/AuthProvider";
 import { SocketProvider } from "./context/SocketProvider";
 import { AuthPage } from "./features/auth/pages/AuthPage";
 import { ChatPage } from "./features/chat/pages/ChatPage";
+import CryptoRoundtripTest from "./tests/CryptoRoundtripTest";
 
 // ✅ Protected route wrapper
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -45,6 +46,8 @@ function App() {
               </AuthRedirector>
             }
           />
+          {/* 🔹 Debug Route for crypto testing */}
+          <Route path="/crypto-test" element={<CryptoRoundtripTest />} />
         </Routes>
       </Router>
     </AuthProvider>

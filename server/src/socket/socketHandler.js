@@ -10,7 +10,7 @@ export const initializeSocketServer = (server) => {
     },
   });
 
-  // --- Socket.IO Authentication Middleware ---
+  // --- Authentication Middleware ---
   io.use((socket, next) => {
     const token = socket.handshake.auth.token;
     if (!token) {
@@ -21,38 +21,60 @@ export const initializeSocketServer = (server) => {
       if (err) {
         return next(new Error("Authentication error: Invalid token"));
       }
-      socket.userId = decoded.userId;
+      socket.userId = decoded.userId; // Attach userId for later use
       next();
     });
   });
 
-  // --- Socket.IO Connection Handling ---
+  // --- Connection Handling ---
   io.on("connection", (socket) => {
-    console.log(`User connected: ${socket.id} with user ID: ${socket.userId}`);
+    console.log(
+      `✅ User connected: ${socket.id} with user ID: ${socket.userId}`
+    );
 
-    socket.on("join_room", (chatRoomId) => {
-      socket.join(chatRoomId);
-      console.log(`User ${socket.userId} joined room: ${chatRoomId}`);
+    socket.on("join_room", (chatroomId) => {
+      socket.join(chatroomId);
+      console.log(`➡️ User ${socket.userId} joined room: ${chatroomId}`);
     });
 
-    socket.on("send_message", async (data) => {
-      const { chatRoomId, encryptedText } = data;
-      const senderId = socket.userId;
+    socket.on("leave_room", (chatroomId) => {
+      socket.leave(chatroomId);
+      console.log(`⬅️ User ${socket.userId} left room: ${chatroomId}`);
+    });
 
-      const savedMessage = await saveMessage({
-        chatRoomId,
-        senderId,
-        encryptedText,
-      });
+    socket.on("send_message", async (message) => {
+      try {
+        // Expecting: { chatroomId, encryptedText }
+        if (!message?.chatroomId) {
+          console.error("❌ Missing chatroomId in payload:", message);
+          return;
+        }
+        if (typeof message.encryptedText !== "string") {
+          console.error(
+            "❌ encryptedText must be a stringified JSON:",
+            message.encryptedText
+          );
+          return;
+        }
 
-      if (savedMessage) {
-        // Broadcast to all other clients in the room
-        socket.to(chatRoomId).emit("receive_message", savedMessage);
+        const messageData = {
+          chatroomId: message.chatroomId,
+          sender: socket.userId,
+          encryptedText: message.encryptedText,
+        };
+
+        const savedMessage = await saveMessage(messageData);
+        if (!savedMessage) return;
+
+        // ✅ Send to everyone EXCEPT the sender
+        socket.to(message.chatroomId).emit("receive_message", savedMessage);
+      } catch (err) {
+        console.error("🔥 Error handling message:", err);
       }
     });
 
     socket.on("disconnect", () => {
-      console.log(`User disconnected: ${socket.id}`);
+      console.log(`❌ User disconnected: ${socket.id}`);
     });
   });
 

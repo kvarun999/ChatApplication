@@ -9,10 +9,44 @@ export const encryptMessage = async (
   myPrivateKeyBase64: string
 ) => {
   await sodium.ready;
+  console.log("🔐 Encrypting with:", {
+    recipientPublicKeyBase64,
+    myPrivateKeyBase64,
+  });
 
   // Decode keys once at boundary
-  const recipientPublicKey = decodeKey(recipientPublicKeyBase64);
-  const myPrivateKey = decodeKey(myPrivateKeyBase64);
+  let recipientPublicKey, myPrivateKey;
+
+  // --- ✅ New Debugging Logic ---
+  // We'll check each key individually to find the invalid one.
+  try {
+    recipientPublicKey = decodeKey(recipientPublicKeyBase64);
+  } catch (e) {
+    console.error(
+      "❌ FAILED TO DECODE RECIPIENT'S PUBLIC KEY. It is not a valid Base64 string.",
+      { key: "recipientPublicKeyBase64" }
+    );
+    throw new Error("Invalid recipient public key format.");
+  }
+  if (recipientPublicKey.length !== sodium.crypto_box_PUBLICKEYBYTES) {
+    throw new Error("Recipient public key must be 32 bytes.");
+  }
+
+  try {
+    myPrivateKey = decodeKey(myPrivateKeyBase64);
+  } catch (e) {
+    console.error(
+      "❌ FAILED TO DECODE YOUR PRIVATE KEY. It is not a valid Base64 string. Try clearing localStorage and logging in again.",
+      { key: "myPrivateKeyBase64" }
+    );
+    throw new Error("Invalid private key format.");
+  }
+
+  if (myPrivateKey.length !== sodium.crypto_box_SECRETKEYBYTES) {
+    throw new Error("Private key must be 32 bytes.");
+  }
+
+  // --- End of Debugging Logic ---
 
   // Unique random nonce for this message
   const nonce = sodium.randombytes_buf(sodium.crypto_box_NONCEBYTES);
@@ -46,12 +80,28 @@ export const decryptMessage = async (
   const senderPublicKey = decodeKey(senderPublicKeyBase64);
   const myPrivateKey = decodeKey(myPrivateKeyBase64);
 
-  const decryptedBytes = sodium.crypto_box_open_easy(
-    ciphertext,
-    nonce,
-    senderPublicKey,
-    myPrivateKey
-  );
+  if (senderPublicKey.length !== sodium.crypto_box_PUBLICKEYBYTES) {
+    throw new Error("Sender public key must be 32 bytes.");
+  }
+  if (myPrivateKey.length !== sodium.crypto_box_SECRETKEYBYTES) {
+    throw new Error("Private key must be 32 bytes.");
+  }
 
-  return sodium.to_string(decryptedBytes);
+  console.log("🔓 Decrypting with:", {
+    senderPublicKeyBase64,
+    myPrivateKeyBase64,
+  });
+
+  try {
+    const decryptedBytes = sodium.crypto_box_open_easy(
+      ciphertext,
+      nonce,
+      senderPublicKey,
+      myPrivateKey
+    );
+    return sodium.to_string(decryptedBytes);
+  } catch (err) {
+    console.error("❌ Decryption failed:", err);
+    throw new Error("Failed to decrypt message. Keys or data may be invalid.");
+  }
 };

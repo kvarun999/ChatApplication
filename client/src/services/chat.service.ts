@@ -4,7 +4,7 @@
 import api from "../lib/axios";
 // our custom axios instance (already has baseURL + token interceptors)
 
-import { ChatRoom } from "../types/chat.types";
+import { ChatRoom, Message } from "../types/chat.types";
 // TypeScript type to describe what a ChatRoom object looks like
 
 // function to fetch all chat rooms of the logged-in user
@@ -13,4 +13,12 @@ export const getMyChatRooms = async (): Promise<ChatRoom[]> => {
   // make GET request -> backend returns chat rooms
   return data;
   // return only the response data (not status, headers, etc.)
+};
+
+// NEW: Function to fetch all messages for a specific chat room
+export const getChatMessages = async (
+  chatroomId: string
+): Promise<Message[]> => {
+  const { data } = await api.get(`/api/chats/${chatroomId}/messages`);
+  return data;
 };
