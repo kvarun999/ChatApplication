@@ -27,8 +27,9 @@ export const UserSearchModal = ({
     setLoading(true);
     const handler = setTimeout(async () => {
       try {
-        const users = await searchUsers(searchTerm);
-        setResults(users);
+        const response = await searchUsers(searchTerm);
+        console.log(response);
+        setResults(response.items || []); // Only use the items array!
         setError(null);
       } catch (err) {
         setError("Failed to search for users.");
@@ -36,7 +37,8 @@ export const UserSearchModal = ({
       } finally {
         setLoading(false);
       }
-    }, 500); // Debounce time: 500ms
+    }, 500);
+    // Debounce time: 500ms
 
     return () => {
       clearTimeout(handler);

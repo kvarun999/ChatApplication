@@ -92,15 +92,18 @@ export const login = async (req, res) => {
   }
 
   try {
-    const foundUser = await User.findOne({ email: email }).exec();
+    const foundUser = await User.findOne({ email: email }).select("+password");
+    console.log(foundUser);
+    console.log(password);
+    console.log(email);
 
-    // ✅ Securely check if the user exists and the password matches in one go.
-    const match = foundUser
-      ? await bcrypt.compare(password, foundUser.password)
-      : false;
+    if (!foundUser || !foundUser.password) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
 
-    // ✅ Use a generic error message to prevent user enumeration attacks.
-    if (!foundUser || !match) {
+    const match = await bcrypt.compare(password, foundUser.password);
+
+    if (!match) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
