@@ -9,6 +9,7 @@ interface ChatListProps {
   selectedChatId?: string;
   loading: boolean;
   error: string | null;
+  onNewChat: () => void;
 }
 
 export const ChatList = ({
@@ -17,6 +18,7 @@ export const ChatList = ({
   selectedChatId,
   loading,
   error,
+  onNewChat,
 }: ChatListProps) => {
   const { user, logout } = useAuth();
 
@@ -32,12 +34,22 @@ export const ChatList = ({
         <h2 className="text-lg font-semibold text-gray-800 truncate">
           {user?.username || "My Chats"}
         </h2>
-        <button
-          onClick={logout}
-          className="bg-red-500 hover:bg-red-600 transition text-white text-sm font-medium py-1.5 px-3 rounded-md shadow"
-        >
-          Logout
-        </button>
+        <div className="flex items-center space-x-2">
+          {/* ✅ NEW: "New Chat" button */}
+          <button
+            onClick={onNewChat}
+            title="Start a new chat"
+            className="bg-blue-500 hover:bg-blue-600 transition text-white font-bold w-8 h-8 rounded-full flex items-center justify-center shadow"
+          >
+            +
+          </button>
+          <button
+            onClick={logout}
+            className="bg-red-500 hover:bg-red-600 transition text-white text-sm font-medium py-1.5 px-3 rounded-md shadow"
+          >
+            Logout
+          </button>
+        </div>
       </div>
 
       {/* Chat list area */}

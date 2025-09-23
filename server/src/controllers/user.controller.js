@@ -1,58 +1,72 @@
 import User from "../models/User.js";
 
+// Escape regex special chars to build safe patterns
+const escapeRegex = (s = "") => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 /**
- * Searches for users by username or email.
- * This function is protected and can only be accessed by authenticated users.
+ * GET /api/users/search?q=term&limit=20&page=1
+ * Auth required.
  */
 export const searchUsers = async (req, res) => {
-  // The search term comes from a URL query parameter (e.g., /api/users/search?q=testuser)
-  const query = req.query.q;
+  const { q = "", limit = 20, page = 1 } = req.query;
+  const term = String(q).trim();
 
-  if (!query) {
+  if (!term)
     return res.status(400).json({ message: "A search query is required" });
-  }
 
   try {
-    // req.userId is attached to the request by the verifyJWT middleware
     const currentUserId = req.userId;
+    const perPage = Math.min(parseInt(limit, 10) || 20, 50);
+    const pageNum = Math.max(parseInt(page, 10) || 1, 1);
+    const skip = (pageNum - 1) * perPage;
 
-    // Use a regular expression for a case-insensitive search
-    const searchRegex = new RegExp(query, "i");
+    const rx = new RegExp(escapeRegex(term), "i");
 
-    // Find users who match the search query but are NOT the current user
-    const users = await User.find({
-      _id: { $ne: currentUserId }, // Exclude the current user from results
-      $or: [
-        { username: { $regex: searchRegex } },
-        { email: { $regex: searchRegex } },
-      ],
-    })
-      .limit(10) // Limit results to 10 to prevent abuse
-      .select("-password -refreshToken") // Exclude sensitive fields from the response
-      .exec();
+    const filter = {
+      _id: { $ne: currentUserId },
+      $or: [{ username: rx }, { email: rx }],
+    };
 
-    res.status(200).json(users);
+    const projection = "_id username publicKey email"; // include only safe fields
+
+    const [items, total] = await Promise.all([
+      User.find(filter)
+        .select(projection)
+        .sort({ username: 1 })
+        .skip(skip)
+        .limit(perPage)
+        .lean(),
+      User.countDocuments(filter),
+    ]);
+
+    res.status(200).json({
+      items,
+      page: pageNum,
+      limit: perPage,
+      total,
+      hasMore: skip + items.length < total,
+    });
   } catch (err) {
-    console.error(err);
+    console.error("searchUsers error:", err);
     res.status(500).json({ message: "Internal server error" });
   }
 };
 
+/**
+ * GET /api/users/me
+ * Auth required.
+ */
 export const getMyProfile = async (req, res) => {
   try {
-    // req.userId is attached by the verifyJWT middleware.
-    // We find the user by their ID and exclude sensitive fields.
     const user = await User.findById(req.userId)
-      .select("-password -refreshToken")
-      .exec();
+      .select("_id username email publicKey createdAt updatedAt") // explicit safe projection
+      .lean();
 
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    if (!user) return res.status(404).json({ message: "User not found" });
 
     res.status(200).json(user);
   } catch (err) {
-    console.error(err);
+    console.error("getMyProfile error:", err);
     res.status(500).json({ message: "Internal server error" });
   }
 };

@@ -1,20 +1,29 @@
 import mongoose from "mongoose";
+
 const userSchema = new mongoose.Schema(
   {
     username: {
       type: String,
       required: true,
       unique: true,
+      trim: true,
+      lowercase: true, // normalize for search/uniqueness
+      minlength: 3,
+      maxlength: 40,
     },
     email: {
       type: String,
       required: true,
-      match: [/.+\@.+\..+/, "Please fill a valid email address"],
       unique: true,
+      trim: true,
+      lowercase: true, // normalize for search/uniqueness
+      match: [/.+@.+\..+/, "Please provide a valid email address"],
     },
     password: {
       type: String,
       required: true,
+      minlength: 8,
+      select: false, // never include by default
     },
     publicKey: {
       type: String,
@@ -22,16 +31,36 @@ const userSchema = new mongoose.Schema(
     },
     avatarUrl: {
       type: String,
-      default:
-        "https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.veryicon.com%2Ficons%2Fmiscellaneous%2Frookie-official-icon-gallery%2F225-default-avatar.html&psig=AOvVaw38oxHg5545P5iRoXOXxVff&ust=1754406990577000&source=images&cd=vfe&opi=89978449&ved=0CBUQjRxqFwoTCNihk7658Y4DFQAAAAAdAAAAABAL",
+      default: "https://static-asset.example.com/avatars/default.png", // replace with your CDN/static asset
     },
     lastSeen: {
       type: Date,
       default: Date.now,
     },
-    refreshToken: String,
+    refreshToken: {
+      type: String,
+      select: false, // do not expose by default
+    },
   },
   { timestamps: true }
 );
+
+// Indexes to speed up search and uniqueness checks
+userSchema.index({ username: 1 }, { unique: true }); // exact/regex prefix
+userSchema.index({ email: 1 }, { unique: true }); // exact/regex prefix
+// Optional text index if you later use $text search instead of $regex:
+// userSchema.index({ username: "text", email: "text" });
+
+// Ensure safe JSON output
+userSchema.set("toJSON", {
+  transform: (_doc, ret) => {
+    delete ret.password;
+    delete ret.refreshToken;
+    return ret;
+  },
+});
+
+// Optional helper virtuals (if needed later)
+// userSchema.virtual("isOnline").get(function () { ... });
 
 export default mongoose.model("User", userSchema);

@@ -22,3 +22,11 @@ export const getChatMessages = async (
   const { data } = await api.get(`/api/chats/${chatroomId}/messages`);
   return data;
 };
+
+// ✅ NEW FUNCTION
+export const createChatRoom = async (
+  recipientId: string
+): Promise<ChatRoom> => {
+  const { data } = await api.post<ChatRoom>("/api/chats", { recipientId });
+  return data;
+};
