@@ -44,13 +44,24 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chatRoom }) => {
             if (msg.sender._id === user._id) {
               // For own messages, you might want to store/retrieve differently
               // For now, we'll try to decrypt using own keys (this might not work with current setup)
-              decryptedText = "[Own message - decryption needed]"; // Placeholder
+              const myPrivateKey = localStorage.getItem("privateKey");
+              if (myPrivateKey) {
+                const { ciphertextBase64, nonceBase64 } = JSON.parse(
+                  msg.encryptedTextForSender
+                );
+                decryptedText = await decryptMessage(
+                  ciphertextBase64,
+                  nonceBase64,
+                  msg.sender.publicKey,
+                  myPrivateKey
+                );
+              }
             } else {
               // Decrypt messages from others
               const myPrivateKey = localStorage.getItem("privateKey");
               if (myPrivateKey) {
                 const { ciphertextBase64, nonceBase64 } = JSON.parse(
-                  msg.encryptedText
+                  msg.encryptedTextForRecipient
                 );
                 decryptedText = await decryptMessage(
                   ciphertextBase64,
@@ -65,7 +76,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chatRoom }) => {
               _id: msg._id,
               chatroomId: msg.chatroomId,
               sender: msg.sender,
-              encryptedText: msg.encryptedText,
+              encryptedTextForRecipient: msg.encryptedTextForRecipient,
+              encryptedTextForSender: msg.encryptedTextForSender,
               text: decryptedText,
               createdAt: msg.createdAt,
             });
@@ -79,7 +91,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chatRoom }) => {
               _id: msg._id,
               chatroomId: msg.chatroomId,
               sender: msg.sender,
-              encryptedText: msg.encryptedText,
+              encryptedTextForRecipient: msg.encryptedTextForRecipient,
+              encryptedTextForSender: msg.encryptedTextForSender,
               text: "[Failed to decrypt]",
               createdAt: msg.createdAt,
             });
@@ -134,7 +147,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chatRoom }) => {
         }
 
         const { ciphertextBase64, nonceBase64 } = JSON.parse(
-          savedMessage.encryptedText
+          savedMessage.encryptedTextForRecipient
         );
 
         const plaintext = await decryptMessage(
@@ -148,7 +161,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chatRoom }) => {
           _id: savedMessage._id,
           chatroomId: savedMessage.chatroomId,
           sender: savedMessage.sender,
-          encryptedText: savedMessage.encryptedText,
+          encryptedTextForRecipient: savedMessage.encryptedTextForRecipient,
+          encryptedTextForSender: savedMessage.encryptedTextForSender,
           text: plaintext,
           createdAt: savedMessage.createdAt,
         };

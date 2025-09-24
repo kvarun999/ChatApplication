@@ -37,15 +37,22 @@ export const MessageInput = ({ chatRoom, onNewMessage }: MessageInputProps) => {
 
       console.log("Encrypting message for recipient:", recipient.username);
 
-      const encryptedPayload = await encryptMessage(
+      const encryptedPayloadRecipient = await encryptMessage(
         text,
         recipient.publicKey,
         myPrivateKey
       );
 
+      const encryptedPayloadSender = await encryptMessage(
+        text,
+        user.publicKey,
+        myPrivateKey
+      );
+
       const messagePayload = {
         chatroomId: chatRoom._id,
-        encryptedText: JSON.stringify(encryptedPayload),
+        encryptedTextForRecipient: JSON.stringify(encryptedPayloadRecipient),
+        encryptedTextForSender: JSON.stringify(encryptedPayloadSender),
       };
 
       // Display sender message immediately (optimistic UI)
@@ -53,7 +60,8 @@ export const MessageInput = ({ chatRoom, onNewMessage }: MessageInputProps) => {
         _id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         chatroomId: chatRoom._id,
         sender: user,
-        encryptedText: JSON.stringify(encryptedPayload),
+        encryptedTextForRecipient: JSON.stringify(encryptedPayloadRecipient),
+        encryptedTextForSender: JSON.stringify(encryptedPayloadSender),
         text: text,
         createdAt: new Date().toISOString(),
       };

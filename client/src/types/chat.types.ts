@@ -5,7 +5,8 @@ export interface Message {
   _id: string;
   chatroomId: string;
   sender: User; // RENAMED: from senderId to sender to match component usage and backend population
-  encryptedText: string;
+  encryptedTextForRecipient: string;
+  encryptedTextForSender: string;
   text?: string; // ADDED: Optional field to hold the decrypted message for the UI
   status?: "sent" | "delivered" | "read";
   type?: "text" | "image" | "file";

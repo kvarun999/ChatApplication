@@ -1,6 +1,8 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { ChatRoom } from "../../../types";
 import { useAuth } from "../../../context/AuthProvider";
+import { decryptMessage } from "../../../services/crypto.service";
+import { ChatRoomListItem } from "./ChatRoomListItem";
 
 // This component is now "presentational". It receives all the data it needs as props.
 interface ChatListProps {
@@ -67,22 +69,13 @@ export const ChatList = ({
         {!loading &&
           !error &&
           chatRooms.map((room) => {
-            const isSelected = room._id === selectedChatId;
             return (
-              <div
+              <ChatRoomListItem
                 key={room._id}
-                onClick={() => onSelectChat(room)}
-                className={`p-4 border-b border-gray-100 hover:bg-gray-100 transition cursor-pointer ${isSelected ? "bg-blue-100" : ""}`}
-              >
-                <p className="font-medium text-gray-900 truncate">
-                  {getOtherParticipantName(room)}
-                </p>
-                <p className="text-sm text-gray-600 truncate mt-1">
-                  {room.lastMessage
-                    ? "Last message..." // In a real app, you'd decrypt this
-                    : "No messages yet"}
-                </p>
-              </div>
+                room={room}
+                isSelected={room._id === selectedChatId}
+                onSelect={onSelectChat}
+              />
             );
           })}
       </div>

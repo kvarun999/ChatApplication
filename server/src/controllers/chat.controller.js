@@ -77,18 +77,20 @@ export const createChatRoom = async (req, res) => {
  * Fetches all chat rooms for the currently authenticated user.
  */
 export const getChatRooms = async (req, res) => {
-  const currentUserId = req.userId;
-
   try {
-    // Find all chat rooms where the 'participants' array contains the current user's ID.
+    const currentUserId = req.userId;
+
     const chatRooms = await ChatRoom.find({ participants: currentUserId })
-      // Sort the chat rooms by the most recent activity (last updated).
-      .sort({ updatedAt: -1 })
-      // Populate the 'participants' field to include user details (like username and publicKey),
-      // while excluding sensitive information.
-      .populate("participants", "-password -refreshToken")
-      // Populate the 'lastMessage' field to show a preview in the chat list.
-      .populate("lastMessage")
+      .populate("participants", "username publicKey avatarUrl")
+      // This is the crucial change: a nested populate
+      .populate({
+        path: "lastMessage",
+        populate: {
+          path: "sender",
+          select: "username publicKey", // Ensure we get the public key
+        },
+      })
+      .sort({ updatedAt: -1 }) // Sort by most recent activity
       .exec();
 
     res.status(200).json(chatRooms);

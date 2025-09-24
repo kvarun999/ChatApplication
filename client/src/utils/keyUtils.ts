@@ -11,9 +11,13 @@ export const initializeSodium = async () => {
 export const generateKeys = async () => {
   await sodium.ready;
   const { publicKey, privateKey } = sodium.crypto_box_keypair();
+  console.log({ publicKey, privateKey });
+  const publicKeyBase64 = sodium.to_base64(publicKey);
+  const privateKeyBase64 = sodium.to_base64(privateKey);
+  console.log({ publicKeyBase64, privateKeyBase64 });
   return {
-    publicKeyBase64: sodium.to_base64(publicKey),
-    privateKeyBase64: sodium.to_base64(privateKey),
+    publicKeyBase64: publicKeyBase64,
+    privateKeyBase64: privateKeyBase64,
   };
 };
 

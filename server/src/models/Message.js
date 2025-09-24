@@ -12,7 +12,11 @@ const messageSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-    encryptedText: {
+    encryptedTextForRecipient: {
+      type: String,
+      required: true,
+    },
+    encryptedTextForSender: {
       type: String,
       required: true,
     },

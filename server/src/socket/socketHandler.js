@@ -44,15 +44,22 @@ export const initializeSocketServer = (server) => {
 
     socket.on("send_message", async (message) => {
       try {
-        // Expecting: { chatroomId, encryptedText }
+        // Expecting: { chatroomId, encryptedTextForSender,  encryptedTextForRecipient}
         if (!message?.chatroomId) {
           console.error("❌ Missing chatroomId in payload:", message);
           return;
         }
-        if (typeof message.encryptedText !== "string") {
+        if (typeof message.encryptedTextForSender !== "string") {
           console.error(
             "❌ encryptedText must be a stringified JSON:",
-            message.encryptedText
+            message.encryptedTextForSender
+          );
+          return;
+        }
+        if (typeof message.encryptedTextForRecipient !== "string") {
+          console.error(
+            "❌ encryptedText must be a stringified JSON:",
+            message.encryptedTextForRecipient
           );
           return;
         }
@@ -60,14 +67,25 @@ export const initializeSocketServer = (server) => {
         const messageData = {
           chatroomId: message.chatroomId,
           sender: socket.userId,
-          encryptedText: message.encryptedText,
+          encryptedTextForRecipient: message.encryptedTextForRecipient,
+          encryptedTextForSender: message.encryptedTextForSender,
         };
 
         const savedMessage = await saveMessage(messageData);
         if (!savedMessage) return;
 
+        const msgObj = savedMessage.toObject();
+
+        socket.emit("receive_message", {
+          ...msgObj,
+          encryptedText: savedMessage.encryptedTextForSender,
+        });
+
         // ✅ Send to everyone EXCEPT the sender
-        socket.to(message.chatroomId).emit("receive_message", savedMessage);
+        socket.to(message.chatroomId).emit("receive_message", {
+          ...msgObj,
+          encryptedText: savedMessage.encryptedTextForRecipient,
+        });
       } catch (err) {
         console.error("🔥 Error handling message:", err);
       }

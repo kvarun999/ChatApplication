@@ -3,14 +3,20 @@ import ChatRoom from "../models/Chatroom.js";
 
 export const saveMessage = async (messageData) => {
   // messageData MUST contain: chatroomId, sender, encryptedText (string)
-  const { chatroomId, sender, encryptedText } = messageData;
+  const {
+    chatroomId,
+    sender,
+    encryptedTextForSender,
+    encryptedTextForRecipient,
+  } = messageData;
 
   try {
     // 1) Create message
     const newMessage = await Message.create({
       chatroomId,
       sender,
-      encryptedText, // must be a string; client will JSON.stringify the payload
+      encryptedTextForSender, // must be a string; client will JSON.stringify the payload
+      encryptedTextForRecipient,
     });
 
     // 2) Update chat’s lastMessage
