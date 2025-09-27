@@ -8,7 +8,7 @@ export interface Message {
   encryptedTextForRecipient: string;
   encryptedTextForSender: string;
   text?: string; // ADDED: Optional field to hold the decrypted message for the UI
-  status?: "sent" | "delivered" | "read";
+  status: "sent" | "delivered" | "read";
   type?: "text" | "image" | "file";
   createdAt: string;
   updatedAt?: string;

@@ -1,7 +1,13 @@
 import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
-import { saveMessage } from "../controllers/message.controller.js";
+import {
+  saveMessage,
+  updateMessageStatus,
+} from "../controllers/message.controller.js";
 import ChatRoom from "../models/Chatroom.js";
+import Message from "../models/Message.js";
+
+const onlineUsers = new Map();
 
 export const initializeSocketServer = (server) => {
   const io = new Server(server, {
@@ -29,6 +35,11 @@ export const initializeSocketServer = (server) => {
     console.log(
       `✅ User connected: ${socket.id} with user ID: ${socket.userId}`
     );
+
+    onlineUsers.set(socket.userId.toString(), socket.id);
+    socket.broadcast.emit("user_online", socket.userId);
+
+    socket.emit("online_users", Array.from(onlineUsers.keys()));
     // Each user joins a personal room to receive notifications
     socket.join(socket.userId.toString());
 
@@ -54,6 +65,43 @@ export const initializeSocketServer = (server) => {
         userId: socket.userId,
         chatroomId: chatroomId,
       });
+    });
+
+    // Listens for when a client confirms a message was delivered to them
+    socket.on("message_delivered", async ({ messageId, senderId }) => {
+      await updateMessageStatus(messageId, "delivered");
+      const senderSocketId = onlineUsers.get(senderId);
+      if (senderSocketId) {
+        io.to(senderSocketId).emit("message_status_updated", {
+          messageId,
+          status: "delivered",
+        });
+      }
+    });
+
+    // Listens for when a user opens a chat and reads the messages
+    socket.on("messages_read", async ({ chatroomId, readerId }) => {
+      // Find all messages in the chat that were not sent by the reader and are not yet read
+      const messagesToUpdate = await Message.find({
+        chatroomId,
+        sender: { $ne: readerId },
+        status: { $ne: "read" },
+      });
+
+      if (messagesToUpdate.length > 0) {
+        const senderId = messagesToUpdate[0].sender.toString();
+        await Message.updateMany(
+          { _id: { $in: messagesToUpdate.map((m) => m._id) } },
+          { $set: { status: "read" } }
+        );
+
+        const senderSocketId = onlineUsers.get(senderId);
+        if (senderSocketId) {
+          io.to(senderSocketId).emit("messages_read_by_recipient", {
+            chatroomId,
+          });
+        }
+      }
     });
 
     socket.on("send_message", async (message) => {
@@ -99,6 +147,8 @@ export const initializeSocketServer = (server) => {
 
     socket.on("disconnect", () => {
       console.log(`❌ User disconnected: ${socket.id}`);
+      onlineUsers.delete(socket.userId.toString());
+      io.emit("user_offline", socket.userId);
     });
   });
 

@@ -10,6 +10,7 @@ import { SocketProvider } from "./context/SocketProvider";
 import { AuthPage } from "./features/auth/pages/AuthPage";
 import { ChatPage } from "./features/chat/pages/ChatPage";
 import CryptoRoundtripTest from "./tests/CryptoRoundtripTest";
+import { PresenceProvider } from "./context/PresenceProvider";
 
 // ✅ Protected route wrapper
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -33,7 +34,9 @@ function App() {
             element={
               <ProtectedRoute>
                 <SocketProvider>
-                  <ChatPage />
+                  <PresenceProvider>
+                    <ChatPage />
+                  </PresenceProvider>
                 </SocketProvider>
               </ProtectedRoute>
             }

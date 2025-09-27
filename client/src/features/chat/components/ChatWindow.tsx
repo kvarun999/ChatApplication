@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { ChatRoom, Message as MessageType } from "../../../types";
 import { useSocket } from "../../../context/SocketProvider";
 import { useAuth } from "../../../context/AuthProvider";
+import { usePresence } from "../../../context/PresenceProvider";
 import { Message } from "./Message";
 import { decryptMessage } from "../../../services/crypto.service";
 import { MessageInput } from "./MessageInput";
@@ -21,6 +22,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const socket = useSocket();
   const { user } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const { onlineUsers } = usePresence();
 
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
 
@@ -86,6 +88,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               encryptedTextForSender: msg.encryptedTextForSender,
               text: decryptedText,
               createdAt: msg.createdAt,
+              status: msg.status || "sent",
             });
           } catch (decryptError) {
             console.error(
@@ -101,6 +104,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               encryptedTextForSender: msg.encryptedTextForSender,
               text: "[Failed to decrypt]",
               createdAt: msg.createdAt,
+              status: msg.status || "sent",
             });
           }
         }
@@ -171,6 +175,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           encryptedTextForSender: savedMessage.encryptedTextForSender,
           text: plaintext,
           createdAt: savedMessage.createdAt,
+          status: savedMessage.status || "sent",
         };
 
         // Add message with deduplication check
@@ -227,6 +232,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const otherParticipant = chatRoom.participants.find(
     (p) => p._id !== user?._id
   );
+  const isOnline = otherParticipant
+    ? onlineUsers.has(otherParticipant._id)
+    : false;
 
   const typingIndicatorText = () => {
     const typingParticipant = chatRoom.participants.find(
@@ -243,6 +251,81 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     setMessages((prev) => [...prev, msg]);
   };
 
+  useEffect(() => {
+    if (!socket || !user) return;
+
+    const handleStatusUpdate = ({
+      messageId,
+      status,
+    }: {
+      messageId: string;
+      status: "delivered" | "read";
+    }) => {
+      setMessages((prev) =>
+        prev.map((msg) => (msg._id === messageId ? { ...msg, status } : msg))
+      );
+    };
+
+    const handleMessagesRead = ({ chatroomId }: { chatroomId: string }) => {
+      if (chatroomId === chatRoom._id) {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.sender._id === user._id ? { ...msg, status: "read" } : msg
+          )
+        );
+      }
+    };
+
+    socket.on("message_status_updated", handleStatusUpdate);
+    socket.on("messages_read_by_recipient", handleMessagesRead);
+
+    return () => {
+      socket.off("message_status_updated", handleStatusUpdate);
+      socket.off("messages_read_by_recipient", handleMessagesRead);
+    };
+  }, [socket, user, chatRoom._id]);
+
+  // ✅ This useEffect handles SENDING confirmations when YOU receive/read messages
+  useEffect(() => {
+    if (!socket || !user) return;
+
+    // Confirm delivery of received messages
+    messages.forEach((msg) => {
+      if (
+        msg.sender._id !== user._id &&
+        msg.status !== "delivered" &&
+        msg.status !== "read"
+      ) {
+        socket.emit("message_delivered", {
+          messageId: msg._id,
+          senderId: msg.sender._id,
+        });
+        // Optimistically update the local state as well
+        setMessages((prev) =>
+          prev.map((m) =>
+            m._id === msg._id ? { ...m, status: "delivered" } : m
+          )
+        );
+      }
+    });
+
+    // Confirm reading of messages
+    const otherParticipant = chatRoom.participants.find(
+      (p) => p._id !== user._id
+    );
+    if (otherParticipant) {
+      const unreadMessagesExist = messages.some(
+        (m) => m.sender._id !== user._id && m.status !== "read"
+      );
+      if (unreadMessagesExist) {
+        socket.emit("messages_read", {
+          chatroomId: chatRoom._id,
+          readerId: user._id,
+        });
+      }
+    }
+  }, [messages, socket, user, chatRoom.participants, chatRoom._id]);
+
   return (
     <div className="flex-1 flex flex-col h-full">
       {" "}
@@ -254,6 +337,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         <h2 className="text-xl font-bold">
           {otherParticipant?.username || "Chat"}
         </h2>
+        {isOnline && <p className="text-xs text-green-600">Online</p>}
       </div>
       {/* Messages Container - This should be the scrollable area */}
       <div className="flex-1 overflow-y-auto bg-gray-200 min-h-0">

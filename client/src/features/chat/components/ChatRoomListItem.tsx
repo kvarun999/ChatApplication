@@ -1,5 +1,7 @@
 import React from "react";
 import { ChatRoom } from "../../../types";
+import { usePresence } from "../../../context/PresenceProvider";
+import { useAuth } from "../../../context/AuthProvider"; // ✅ 1. Import useAuth
 
 // Helper to format the timestamp
 function formatRelativeTime(date: string | Date | null): string {
@@ -17,12 +19,11 @@ function formatRelativeTime(date: string | Date | null): string {
   return `${diffDays}d ago`;
 }
 
-// ✅ DEFINE THE PROPS THE COMPONENT WILL RECEIVE
 interface ChatRoomListItemProps {
   room: ChatRoom;
   isSelected: boolean;
   onSelect: (room: ChatRoom) => void;
-  unreadCount: number; // This line is crucial
+  unreadCount: number;
   lastMessagePreview: string;
   lastMessageTimestamp: string | Date | null;
   otherParticipantName: string;
@@ -32,11 +33,20 @@ export const ChatRoomListItem: React.FC<ChatRoomListItemProps> = ({
   room,
   isSelected,
   onSelect,
-  unreadCount, // Now we receive it as a prop
+  unreadCount,
   lastMessagePreview,
   lastMessageTimestamp,
   otherParticipantName,
 }) => {
+  const { user } = useAuth(); // ✅ 2. Get the current user
+  const { onlineUsers } = usePresence();
+
+  // ✅ 3. Correctly find the other participant by comparing with the current user's ID
+  const otherParticipant = room.participants.find((p) => p._id !== user?._id);
+  const isOnline = otherParticipant
+    ? onlineUsers.has(otherParticipant._id)
+    : false;
+
   return (
     <div
       onClick={() => onSelect(room)}
@@ -46,9 +56,14 @@ export const ChatRoomListItem: React.FC<ChatRoomListItemProps> = ({
     >
       <div className="flex-grow min-w-0">
         <div className="flex justify-between items-center">
-          <h3 className="font-semibold text-gray-800 truncate">
-            {otherParticipantName}
-          </h3>
+          <div className="flex items-center space-x-2">
+            {isOnline && (
+              <div className="w-2.5 h-2.5 bg-green-500 rounded-full flex-shrink-0"></div>
+            )}
+            <h3 className="font-semibold text-gray-800 truncate">
+              {otherParticipantName}
+            </h3>
+          </div>
           {lastMessageTimestamp && (
             <div className="ml-2 text-xs text-gray-400 flex-shrink-0">
               {formatRelativeTime(lastMessageTimestamp)}
@@ -57,7 +72,6 @@ export const ChatRoomListItem: React.FC<ChatRoomListItemProps> = ({
         </div>
         <div className="flex justify-between items-start mt-1">
           <p className="text-sm text-gray-600 truncate">{lastMessagePreview}</p>
-          {/* ✅ Now this comparison is safe because unreadCount is always a number */}
           {unreadCount > 0 && (
             <span className="ml-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0">
               {unreadCount}

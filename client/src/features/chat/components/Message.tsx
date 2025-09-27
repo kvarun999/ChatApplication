@@ -1,6 +1,7 @@
 import React from "react";
 import { Message as MessageType } from "../../../types/chat.types";
 import { useAuth } from "../../../context/AuthProvider";
+import { MessageStatus } from "./MessageStatus";
 
 interface MessageProps {
   message: MessageType;
@@ -36,6 +37,7 @@ export const Message = ({ message }: MessageProps) => {
             minute: "2-digit",
           })}
         </p>
+        <MessageStatus status={message.status} isMe={isMe} />
 
         {/* Tail arrow */}
         <span

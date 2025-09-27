@@ -35,3 +35,11 @@ export const saveMessage = async (messageData) => {
     throw err;
   }
 };
+
+export const updateMessageStatus = async (messageId, status) => {
+  try {
+    await Message.findByIdAndUpdate(messageId, { status });
+  } catch (err) {
+    console.error("Error updating message status:", err);
+  }
+};

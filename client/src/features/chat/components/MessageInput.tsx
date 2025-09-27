@@ -77,6 +77,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         createdAt: createdAt,
         encryptedTextForRecipient: messagePayload.encryptedTextForRecipient,
         encryptedTextForSender: messagePayload.encryptedTextForSender,
+        status: "sent",
       };
 
       // 1. Update the chat window immediately
