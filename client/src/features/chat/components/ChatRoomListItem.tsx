@@ -1,92 +1,70 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { ChatRoom } from "../../../types";
-import { useAuth } from "../../../context/AuthProvider";
-import { decryptMessage } from "../../../services/crypto.service";
 
+// Helper to format the timestamp
+function formatRelativeTime(date: string | Date | null): string {
+  if (!date) return "";
+  const now = new Date();
+  const then = new Date(date);
+  const diffMs = now.getTime() - then.getTime();
+  const diffMinutes = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMinutes < 1) return "just now";
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  return `${diffDays}d ago`;
+}
+
+// ✅ DEFINE THE PROPS THE COMPONENT WILL RECEIVE
 interface ChatRoomListItemProps {
   room: ChatRoom;
   isSelected: boolean;
   onSelect: (room: ChatRoom) => void;
+  unreadCount: number; // This line is crucial
+  lastMessagePreview: string;
+  lastMessageTimestamp: string | Date | null;
+  otherParticipantName: string;
 }
 
 export const ChatRoomListItem: React.FC<ChatRoomListItemProps> = ({
   room,
   isSelected,
   onSelect,
+  unreadCount, // Now we receive it as a prop
+  lastMessagePreview,
+  lastMessageTimestamp,
+  otherParticipantName,
 }) => {
-  const { user } = useAuth();
-  const [decryptedPreview, setDecryptedPreview] = useState<string | null>(null);
-
-  useEffect(() => {
-    const decryptLastMessage = async () => {
-      // If there's no last message, do nothing
-      if (!room.lastMessage) {
-        setDecryptedPreview("No messages yet");
-        return;
-      }
-
-      try {
-        const myPrivateKey = localStorage.getItem("privateKey");
-        if (!myPrivateKey) {
-          setDecryptedPreview("[Encryption key not found]");
-          return;
-        }
-
-        // ✅ THE FIX: Get the sender object directly from the lastMessage
-        const sender = room.lastMessage.sender;
-        if (!sender || !sender.publicKey) {
-          setDecryptedPreview("[Cannot decrypt: sender info missing]");
-          return;
-        }
-
-        // Determine which encrypted text to use
-        const encryptedStr =
-          sender._id === user?._id
-            ? room.lastMessage.encryptedTextForSender
-            : room.lastMessage.encryptedTextForRecipient;
-
-        const { ciphertextBase64, nonceBase64 } = JSON.parse(encryptedStr);
-
-        const decryptedText = await decryptMessage(
-          ciphertextBase64,
-          nonceBase64,
-          sender.publicKey, // Use the sender's public key
-          myPrivateKey
-        );
-
-        // Add "You:" prefix if the current user sent the last message
-        let previewText =
-          sender._id === user?._id ? `You: ${decryptedText}` : decryptedText;
-
-        if (previewText.length >= 18) {
-          previewText = previewText.substring(0, 27) + "...";
-        }
-
-        setDecryptedPreview(previewText);
-      } catch (e) {
-        console.error("Failed to decrypt preview:", e);
-        setDecryptedPreview("[Encrypted Message]");
-      }
-    };
-    decryptLastMessage();
-  }, [room.lastMessage, user]); // Rerun only when the last message changes
-
-  // Determine the name of the "other" participant in the chat
-  const otherParticipant = room.participants.find((p) => p._id !== user?._id);
-
   return (
     <div
       onClick={() => onSelect(room)}
-      className={`p-4 border-b border-gray-100 hover:bg-gray-100 transition cursor-pointer ${
-        isSelected ? "bg-blue-100" : ""
+      className={`flex items-center p-3 cursor-pointer transition-colors duration-150 ${
+        isSelected ? "bg-blue-100" : "hover:bg-gray-100"
       }`}
     >
-      <p className="font-medium text-gray-900 truncate">
-        {otherParticipant?.username || "Unknown User"}
-      </p>
-      <p className="text-sm text-gray-600 truncate mt-1">
-        {decryptedPreview === null ? "..." : decryptedPreview}
-      </p>
+      <div className="flex-grow min-w-0">
+        <div className="flex justify-between items-center">
+          <h3 className="font-semibold text-gray-800 truncate">
+            {otherParticipantName}
+          </h3>
+          {lastMessageTimestamp && (
+            <div className="ml-2 text-xs text-gray-400 flex-shrink-0">
+              {formatRelativeTime(lastMessageTimestamp)}
+            </div>
+          )}
+        </div>
+        <div className="flex justify-between items-start mt-1">
+          <p className="text-sm text-gray-600 truncate">{lastMessagePreview}</p>
+          {/* ✅ Now this comparison is safe because unreadCount is always a number */}
+          {unreadCount > 0 && (
+            <span className="ml-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0">
+              {unreadCount}
+            </span>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

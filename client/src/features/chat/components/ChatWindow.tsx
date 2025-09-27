@@ -9,14 +9,20 @@ import { getChatMessages } from "../../../services/chat.service"; // Import the 
 
 interface ChatWindowProps {
   chatRoom: ChatRoom;
+  onOptimisticUpdate: (chatroomId: string, message: MessageType) => void;
 }
 
-export const ChatWindow: React.FC<ChatWindowProps> = ({ chatRoom }) => {
+export const ChatWindow: React.FC<ChatWindowProps> = ({
+  chatRoom,
+  onOptimisticUpdate,
+}) => {
   const [messages, setMessages] = useState<MessageType[]>([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const socket = useSocket();
   const { user } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
 
   // Reset messages when chat room changes
   useEffect(() => {
@@ -191,9 +197,46 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chatRoom }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleUserTyping = (data: { userId: string; chatroomId: string }) => {
+      if (data.chatroomId === chatRoom._id) {
+        setTypingUsers((prev) => [...new Set([...prev, data.userId])]);
+      }
+    };
+
+    const handleUserStoppedTyping = (data: {
+      userId: string;
+      chatroomId: string;
+    }) => {
+      if (data.chatroomId === chatRoom._id) {
+        setTypingUsers((prev) => prev.filter((id) => id !== data.userId));
+      }
+    };
+
+    socket.on("user_typing", handleUserTyping);
+    socket.on("user_stopped_typing", handleUserStoppedTyping);
+
+    return () => {
+      socket.off("user_typing", handleUserTyping);
+      socket.off("user_stopped_typing", handleUserStoppedTyping);
+    };
+  }, [socket, chatRoom._id]);
+
   const otherParticipant = chatRoom.participants.find(
     (p) => p._id !== user?._id
   );
+
+  const typingIndicatorText = () => {
+    const typingParticipant = chatRoom.participants.find(
+      (p) => p._id === typingUsers[0]
+    );
+    if (typingParticipant) {
+      return `${typingParticipant.username} is typing...`;
+    }
+    return null;
+  };
 
   const handleNewMessage = (msg: MessageType) => {
     console.log("Adding new message locally:", msg);
@@ -230,6 +273,14 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chatRoom }) => {
           ) : (
             messages.map((msg) => <Message key={msg._id} message={msg} />)
           )}
+          {/* ✅ 4. Render the typing indicator */}
+          {typingUsers.length > 0 && (
+            <div className="flex justify-start mb-3">
+              <div className="bg-gray-100 text-gray-500 px-4 py-2 rounded-xl rounded-bl-none animate-pulse">
+                {typingIndicatorText()}
+              </div>
+            </div>
+          )}
           <div ref={messagesEndRef} />
         </div>
       </div>
@@ -237,7 +288,11 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chatRoom }) => {
       <div className="flex-shrink-0">
         {" "}
         {/* Add flex-shrink-0 */}
-        <MessageInput chatRoom={chatRoom} onNewMessage={handleNewMessage} />
+        <MessageInput
+          chatRoom={chatRoom}
+          onNewMessage={handleNewMessage}
+          onOptimisticUpdate={onOptimisticUpdate}
+        />
       </div>
     </div>
   );

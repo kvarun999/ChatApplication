@@ -21,6 +21,8 @@ export interface ChatRoom {
   type: "one_to_one" | "group";
   lastMessage?: Message; // The last message can be optional
   unreadCount?: { [userId: string]: number }; // Represents a Map in TS
+  lastMessagePreview?: string;
+  lastMessageTimestamp?: string;
   groupname?: string;
   groupicon?: string;
   status?: "active" | "blocked";
@@ -29,4 +31,13 @@ export interface ChatRoom {
   archivedBy?: string[];
   createdAt: string;
   updatedAt?: string;
+}
+
+// notification type
+export interface MessageNotification {
+  chatroomId: string;
+  encryptedSnippet: string;
+  senderUsername: string;
+  senderPublicKey: string;
+  timestamp?: string;
 }

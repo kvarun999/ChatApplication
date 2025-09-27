@@ -1,10 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { ChatRoom } from "../../../types";
 import { useAuth } from "../../../context/AuthProvider";
-import { decryptMessage } from "../../../services/crypto.service";
 import { ChatRoomListItem } from "./ChatRoomListItem";
 
-// This component is now "presentational". It receives all the data it needs as props.
 interface ChatListProps {
   chatRooms: ChatRoom[];
   onSelectChat: (chatRoom: ChatRoom) => void;
@@ -14,18 +12,19 @@ interface ChatListProps {
   onNewChat: () => void;
 }
 
-export const ChatList = ({
+export const ChatList: React.FC<ChatListProps> = ({
   chatRooms,
   onSelectChat,
   selectedChatId,
   loading,
   error,
   onNewChat,
-}: ChatListProps) => {
+}) => {
   const { user, logout } = useAuth();
 
   const getOtherParticipantName = (room: ChatRoom) => {
-    const other = room.participants.find((p) => p._id !== user?._id);
+    if (!user) return "Unknown User";
+    const other = room.participants.find((p) => p._id !== user._id);
     return other?.username || "Unknown User";
   };
 
@@ -37,7 +36,6 @@ export const ChatList = ({
           {user?.username || "My Chats"}
         </h2>
         <div className="flex items-center space-x-2">
-          {/* ✅ NEW: "New Chat" button */}
           <button
             onClick={onNewChat}
             title="Start a new chat"
@@ -56,7 +54,6 @@ export const ChatList = ({
 
       {/* Chat list area */}
       <div className="flex-1 overflow-y-auto">
-        {/* Loading and Error States */}
         {loading && <p className="p-4 text-gray-600">Loading chats...</p>}
         {error && <p className="p-4 text-red-500">{error}</p>}
         {!loading && !error && chatRooms.length === 0 && (
@@ -69,12 +66,27 @@ export const ChatList = ({
         {!loading &&
           !error &&
           chatRooms.map((room) => {
+            if (!user) return null;
+
+            // This part correctly calculates the number
+            const unreadCountForUser = room.unreadCount?.[user._id] || 0;
+
+            const lastMessagePreview =
+              room.lastMessagePreview || "No messages yet";
+            const lastMessageTimestamp =
+              room.lastMessageTimestamp || room.lastMessage?.createdAt;
+
+            // This part correctly passes the number as a prop
             return (
               <ChatRoomListItem
                 key={room._id}
                 room={room}
                 isSelected={room._id === selectedChatId}
                 onSelect={onSelectChat}
+                unreadCount={unreadCountForUser} // Passing the number here
+                lastMessagePreview={lastMessagePreview}
+                lastMessageTimestamp={lastMessageTimestamp ?? null}
+                otherParticipantName={getOtherParticipantName(room)}
               />
             );
           })}

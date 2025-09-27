@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useSocket } from "../../../context/SocketProvider";
 import { useAuth } from "../../../context/AuthProvider";
 import { ChatRoom, Message } from "../../../types/chat.types";
@@ -6,14 +6,41 @@ import { encryptMessage } from "../../../services/crypto.service";
 
 interface MessageInputProps {
   chatRoom: ChatRoom;
-  onNewMessage?: (msg: Message) => void;
+  onNewMessage: (msg: Message) => void;
+  onOptimisticUpdate: (chatroomId: string, message: Message) => void;
 }
 
-export const MessageInput = ({ chatRoom, onNewMessage }: MessageInputProps) => {
+export const MessageInput: React.FC<MessageInputProps> = ({
+  chatRoom,
+  onNewMessage,
+  onOptimisticUpdate,
+}) => {
   const [text, setText] = useState("");
   const [isSending, setIsSending] = useState(false);
   const socket = useSocket();
   const { user } = useAuth();
+
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleTyping = () => {
+    if (!socket) return;
+
+    if (!typingTimeoutRef.current) {
+      socket.emit("start_typing", {
+        userId: user?._id,
+        chatroomId: chatRoom._id,
+      });
+    }
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = setTimeout(() => {
+      socket.emit("stop_typing", { chatroomId: chatRoom._id });
+      typingTimeoutRef.current = null; // Reset the ref
+    }, 2000); // 2 seconds
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,31 +50,18 @@ export const MessageInput = ({ chatRoom, onNewMessage }: MessageInputProps) => {
 
     try {
       const myPrivateKey = localStorage.getItem("privateKey");
-      if (!myPrivateKey) {
-        console.error("Private key not found!");
-        alert("Private key not found. Please log out and log in again.");
-        return;
-      }
+      if (!myPrivateKey) throw new Error("Private key not found!");
 
       const recipient = chatRoom.participants.find((p) => p._id !== user._id);
-      if (!recipient) {
-        console.error("Recipient not found!");
-        return;
-      }
+      if (!recipient) throw new Error("Recipient not found!");
 
-      console.log("Encrypting message for recipient:", recipient.username);
+      const createdAt = new Date().toISOString();
 
-      const encryptedPayloadRecipient = await encryptMessage(
-        text,
-        recipient.publicKey,
-        myPrivateKey
-      );
-
-      const encryptedPayloadSender = await encryptMessage(
-        text,
-        user.publicKey,
-        myPrivateKey
-      );
+      const [encryptedPayloadRecipient, encryptedPayloadSender] =
+        await Promise.all([
+          encryptMessage(text, recipient.publicKey, myPrivateKey),
+          encryptMessage(text, user.publicKey, myPrivateKey),
+        ]);
 
       const messagePayload = {
         chatroomId: chatRoom._id,
@@ -55,31 +69,24 @@ export const MessageInput = ({ chatRoom, onNewMessage }: MessageInputProps) => {
         encryptedTextForSender: JSON.stringify(encryptedPayloadSender),
       };
 
-      // Display sender message immediately (optimistic UI)
       const localMessage: Message = {
-        _id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        _id: `temp-${Date.now()}`,
         chatroomId: chatRoom._id,
         sender: user,
-        encryptedTextForRecipient: JSON.stringify(encryptedPayloadRecipient),
-        encryptedTextForSender: JSON.stringify(encryptedPayloadSender),
         text: text,
-        createdAt: new Date().toISOString(),
+        createdAt: createdAt,
+        encryptedTextForRecipient: messagePayload.encryptedTextForRecipient,
+        encryptedTextForSender: messagePayload.encryptedTextForSender,
       };
 
-      console.log("Adding message locally and sending to server");
+      // 1. Update the chat window immediately
+      onNewMessage(localMessage);
 
-      // Add to local state immediately
-      onNewMessage?.(localMessage);
+      // 2. Tell the parent page to update the chat list preview
+      onOptimisticUpdate(chatRoom._id, localMessage);
 
-      // Send to server
-      if (socket) {
-        socket.emit("send_message", messagePayload);
-        console.log("Message sent to server:", messagePayload);
-      } else {
-        console.error("Socket not connected!");
-        alert("Not connected to server. Please refresh and try again.");
-        return;
-      }
+      // 3. Send the message to the server
+      socket?.emit("send_message", messagePayload);
 
       setText("");
     } catch (e) {
@@ -96,7 +103,10 @@ export const MessageInput = ({ chatRoom, onNewMessage }: MessageInputProps) => {
         <input
           type="text"
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+            setText(e.target.value);
+            handleTyping();
+          }}
           disabled={isSending}
           className="flex-1 p-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-200"
           placeholder={isSending ? "Sending..." : "Type a message..."}
