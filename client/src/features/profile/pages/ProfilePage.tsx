@@ -42,26 +42,17 @@ export const ProfilePage: React.FC = () => {
 
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string>(
-    user?.avatarUrl
-      ? `http://localhost:3000${user.avatarUrl}`
-      : "https://static.productionready.io/images/smiley-cyrus.jpg"
+    user?.avatarUrl ||
+      "https://static.productionready.io/images/smiley-cyrus.jpg"
   );
   const [avatarError, setAvatarError] = useState("");
   const [avatarSuccess, setAvatarSuccess] = useState("");
   const [isAvatarLoading, setIsAvatarLoading] = useState(false);
 
   useEffect(() => {
-    // Check if the avatarUrl exists on the user object
-    if (user?.avatarUrl) {
-      // If the URL is already a full URL (from createObjectURL), use it directly.
-      // Otherwise, construct the full URL from the server path.
-      if (user.avatarUrl.startsWith("blob:")) {
-        setAvatarPreview(user.avatarUrl);
-      } else {
-        setAvatarPreview(`http://localhost:3000${user.avatarUrl}`);
-      }
+    if (user?.avatarUrl && user.avatarUrl.trim() !== "") {
+      setAvatarPreview(user.avatarUrl);
     } else {
-      // Fallback if the user has no avatar
       setAvatarPreview(
         "https://static.productionready.io/images/smiley-cyrus.jpg"
       );
@@ -174,10 +165,19 @@ export const ProfilePage: React.FC = () => {
             className="flex flex-col items-center space-y-4"
           >
             <img
-              src={avatarPreview}
+              src={
+                avatarPreview && avatarPreview.trim() !== ""
+                  ? avatarPreview
+                  : "https://static.productionready.io/images/smiley-cyrus.jpg"
+              }
               alt="Profile Avatar"
               className="w-32 h-32 rounded-full object-cover border-4 border-gray-200"
+              onError={(e) => {
+                e.currentTarget.src =
+                  "https://static.productionready.io/images/smiley-cyrus.jpg";
+              }}
             />
+
             <input
               type="file"
               id="avatarInput"

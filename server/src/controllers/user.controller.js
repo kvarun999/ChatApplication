@@ -131,33 +131,29 @@ export const updateUserPassword = async (req, res) => {
 };
 
 export const updateUserAvatar = async (req, res) => {
-  // 1. Multer provides the file on req.file. If it's not there, something went wrong.
   if (!req.file) {
-    return res.status(400).json({ message: "No image file uploaded." });
+    return res.status(400).json({ message: "No image file was uploaded." });
   }
 
   try {
-    // 2. We construct a web-accessible URL from the file path.
-    // Multer saves the path as 'public\\uploads\\avatars\\filename.png' (on Windows)
-    // We need to replace backslashes and remove 'public' to make a valid URL like '/uploads/avatars/filename.png'
-    const avatarUrl = req.file.path.replace(/\\/g, "/").replace("public", "");
+    // Construct the relative path
+    const relativePath = `/uploads/avatars/${req.file.filename}`;
 
+    // ✅ Construct the full URL using the request protocol and host
+    const fullAvatarUrl = `${req.protocol}://${req.get("host")}${relativePath}`;
+
+    // Find the user and update their avatarUrl with the full URL
     const user = await User.findByIdAndUpdate(
       req.userId,
-      { avatarUrl: avatarUrl },
-      { new: true }
-    );
+      { avatarUrl: fullAvatarUrl },
+      { new: true } // Return the updated document
+    ).select("-password -refreshToken");
 
     if (!user) {
       return res.status(404).json({ message: "User not found." });
     }
 
-    const userToReturn = user.toObject();
-    delete userToReturn.password;
-    delete userToReturn.refreshToken;
-    console.log(userToReturn.avatarUrl);
-
-    res.status(200).json(userToReturn);
+    res.status(200).json(user);
   } catch (err) {
     console.error("Error updating avatar:", err);
     res.status(500).json({ message: "Internal server error" });

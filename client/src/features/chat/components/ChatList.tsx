@@ -57,7 +57,19 @@ export const ChatList: React.FC<ChatListProps> = ({
             title="My Profile"
             className="p-1 rounded-full hover:bg-gray-200 transition"
           >
-            <UserIcon />
+            <img
+              src={
+                user?.avatarUrl && user.avatarUrl.trim() !== ""
+                  ? user.avatarUrl
+                  : "https://static.productionready.io/images/smiley-cyrus.jpg"
+              }
+              alt="user"
+              className="w-10 h-10 rounded-full object-cover"
+              onError={(e) => {
+                e.currentTarget.src =
+                  "https://static.productionready.io/images/smiley-cyrus.jpg";
+              }}
+            />
           </Link>
           <h2 className="text-lg font-semibold text-gray-800 truncate">
             {user?.username || "My Chats"}
