@@ -5,6 +5,7 @@ import React, {
   ReactNode,
   useMemo,
   useEffect,
+  useCallback, // 1. Import useCallback
 } from "react";
 import { User } from "../types/user.types";
 import { getMe } from "../services/user.service";
@@ -13,9 +14,10 @@ interface AuthContextType {
   accessToken: string | null;
   isAuthenticated: boolean;
   user: User | null;
-  isLoading: boolean; // To handle initial load state
+  isLoading: boolean;
   login: (token: string) => Promise<void>;
   logout: () => void;
+  updateUser: (newUser: User) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -25,52 +27,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.getItem("accessToken")
   );
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true); // Start loading on init
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Effect to check for existing token and fetch user on app start
   useEffect(() => {
     const initializeAuth = async () => {
       if (accessToken) {
         try {
-          // Use the request interceptor in axios.ts to add the token
           const userData = await getMe();
           setUser(userData);
         } catch (error) {
-          // Token is invalid or expired, clear it
           console.error("Session expired, logging out.");
+          localStorage.removeItem("accessToken");
           setAccessToken(null);
           setUser(null);
-          localStorage.removeItem("accessToken");
         }
       }
       setIsLoading(false);
     };
     initializeAuth();
-  }, []); // Run only once on app mount
+  }, [accessToken]); // Depend on accessToken to re-fetch if it changes
 
-  const login = async (token: string) => {
-    // Set token immediately for the interceptor to use
+  const login = useCallback(async (token: string) => {
     localStorage.setItem("accessToken", token);
-    setAccessToken(token);
+    setAccessToken(token); // This will trigger the useEffect above
+  }, []);
 
-    // After setting the token, fetch the user data
-    try {
-      const userData = await getMe();
-      setUser(userData);
-    } catch (error) {
-      console.error("Failed to fetch user after login", error);
-      // If user fetch fails, logout to clear the bad state
-      logout();
-    }
-  };
-
-  const logout = () => {
+  const logout = useCallback(() => {
     setAccessToken(null);
     setUser(null);
     localStorage.removeItem("accessToken");
-    // In a real app, you might also call the /api/auth/logout endpoint
-  };
+  }, []);
 
+  // ✅ 2. Wrap updateUser in useCallback
+  const updateUser = useCallback((newUserData: User) => {
+    setUser(newUserData);
+  }, []);
+
+  // The useMemo hook ensures the context value object is stable
   const authContextValue = useMemo(
     () => ({
       accessToken,
@@ -79,11 +72,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       isLoading,
       login,
       logout,
+      updateUser,
     }),
-    [accessToken, user, isLoading]
+    [accessToken, user, isLoading, login, logout, updateUser] // ✅ 3. Add functions to dependency array
   );
 
-  // Render a loading state while we verify the token on app load
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -99,7 +92,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-// Custom hook remains the same
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {

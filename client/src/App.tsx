@@ -11,6 +11,7 @@ import { AuthPage } from "./features/auth/pages/AuthPage";
 import { ChatPage } from "./features/chat/pages/ChatPage";
 import CryptoRoundtripTest from "./tests/CryptoRoundtripTest";
 import { PresenceProvider } from "./context/PresenceProvider";
+import { ProfilePage } from "./features/profile/pages/ProfilePage";
 
 // ✅ Protected route wrapper
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -38,6 +39,14 @@ function App() {
                     <ChatPage />
                   </PresenceProvider>
                 </SocketProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <ProfilePage />
               </ProtectedRoute>
             }
           />

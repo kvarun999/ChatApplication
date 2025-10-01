@@ -1,4 +1,5 @@
 import User from "../models/User.js";
+import bcrypt from "bcrypt";
 
 // Escape regex special chars to build safe patterns
 const escapeRegex = (s = "") => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -59,7 +60,7 @@ export const searchUsers = async (req, res) => {
 export const getMyProfile = async (req, res) => {
   try {
     const user = await User.findById(req.userId)
-      .select("_id username email publicKey createdAt updatedAt") // explicit safe projection
+      .select("_id username email publicKey avatarUrl createdAt updatedAt")
       .lean();
 
     if (!user) return res.status(404).json({ message: "User not found" });
@@ -67,6 +68,98 @@ export const getMyProfile = async (req, res) => {
     res.status(200).json(user);
   } catch (err) {
     console.error("getMyProfile error:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const updateUserProfile = async (req, res) => {
+  const { username } = req.body;
+  if (!username) {
+    return res.status(400).json({ message: "username is required" });
+  }
+  try {
+    const user = await User.findById(req.userId).exec();
+    if (!user) {
+      console.log("user not found");
+      return res.sendStatus(404);
+    }
+    user.username = username;
+    await user.save();
+
+    const userToReturn = user.toObject();
+    delete userToReturn.password;
+    delete userToReturn.refreshToken;
+
+    return res.status(200).json(userToReturn);
+  } catch (err) {
+    console.error("updateUserProfile error:", err);
+    if (err.code === 11000) {
+      return res.status(409).json({ message: "username is already taken" });
+    }
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const updateUserPassword = async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ message: "missing password fields" });
+  }
+
+  try {
+    const user = await User.findById(req.userId).select("+password").exec();
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Incorrect current password" });
+    }
+    const newPasswordHash = await bcrypt.hash(newPassword, 10);
+    user.password = newPasswordHash;
+    await user.save();
+
+    const userToReturn = user.toObject();
+    delete userToReturn.password;
+    delete userToReturn.refreshToken;
+
+    return res.status(200).json(userToReturn);
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const updateUserAvatar = async (req, res) => {
+  // 1. Multer provides the file on req.file. If it's not there, something went wrong.
+  if (!req.file) {
+    return res.status(400).json({ message: "No image file uploaded." });
+  }
+
+  try {
+    // 2. We construct a web-accessible URL from the file path.
+    // Multer saves the path as 'public\\uploads\\avatars\\filename.png' (on Windows)
+    // We need to replace backslashes and remove 'public' to make a valid URL like '/uploads/avatars/filename.png'
+    const avatarUrl = req.file.path.replace(/\\/g, "/").replace("public", "");
+
+    const user = await User.findByIdAndUpdate(
+      req.userId,
+      { avatarUrl: avatarUrl },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    const userToReturn = user.toObject();
+    delete userToReturn.password;
+    delete userToReturn.refreshToken;
+    console.log(userToReturn.avatarUrl);
+
+    res.status(200).json(userToReturn);
+  } catch (err) {
+    console.error("Error updating avatar:", err);
     res.status(500).json({ message: "Internal server error" });
   }
 };

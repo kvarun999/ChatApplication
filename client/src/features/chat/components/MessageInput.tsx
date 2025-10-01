@@ -20,7 +20,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const socket = useSocket();
   const { user } = useAuth();
 
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleTyping = () => {
     if (!socket) return;

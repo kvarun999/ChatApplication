@@ -23,6 +23,7 @@ app.use(
 // Middlewares
 app.use(express.json());
 app.use(cookieParser()); // 👈 Use cookie-parser to handle cookies
+app.use(express.static("public"));
 
 const PORT = 3000;
 
