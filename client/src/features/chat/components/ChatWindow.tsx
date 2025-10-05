@@ -25,6 +25,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const { onlineUsers } = usePresence();
 
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const defaultAvatar =
+    "https://static.productionready.io/images/smiley-cyrus.jpg";
 
   // Reset messages when chat room changes
   useEffect(() => {
@@ -331,13 +333,26 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       {" "}
       {/* Add h-full */}
       {/* Header */}
-      <div className="p-4 border-b border-gray-300 bg-gray-100 flex-shrink-0">
-        {" "}
-        {/* Add flex-shrink-0 */}
-        <h2 className="text-xl font-bold">
-          {otherParticipant?.username || "Chat"}
-        </h2>
-        {isOnline && <p className="text-xs text-green-600">Online</p>}
+      <div className="p-4 border-b border-gray-300 bg-gray-100 flex items-center gap-4 flex-shrink-0">
+        <img
+          src={
+            otherParticipant?.avatarUrl &&
+            otherParticipant.avatarUrl.trim() !== ""
+              ? otherParticipant.avatarUrl
+              : defaultAvatar
+          }
+          alt="user avatar"
+          className="w-12 h-12 rounded-full object-cover"
+          onError={(e) => {
+            e.currentTarget.src = defaultAvatar;
+          }}
+        />
+        <div>
+          <h2 className="text-xl font-bold">
+            {otherParticipant?.username || "Chat"}
+          </h2>
+          {isOnline && <p className="text-xs text-green-600">Online</p>}
+        </div>
       </div>
       {/* Messages Container - This should be the scrollable area */}
       <div className="flex-1 overflow-y-auto bg-gray-200 min-h-0">

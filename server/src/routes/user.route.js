@@ -8,7 +8,6 @@ import {
 } from "../controllers/user.controller.js";
 import { verifyJWT } from "../middlewares/verifyJWT.js"; // 👈 Import your middleware
 import { uploadAvatar } from "../middlewares/multer.middleware.js";
-import multer from "multer";
 
 const router = express.Router();
 

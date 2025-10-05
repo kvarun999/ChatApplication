@@ -2,7 +2,8 @@ import express from "express";
 import {
   createChatRoom,
   getChatRooms,
-  getChatMessages, // Add this new import
+  getChatMessages,
+  markChatAsRead, // Add this new import
 } from "../controllers/chat.controller.js";
 import { verifyJWT } from "../middlewares/verifyJWT.js";
 
@@ -16,5 +17,7 @@ router.get("/", verifyJWT, getChatRooms);
 
 // NEW: Route to get all messages for a specific chat room
 router.get("/:chatroomId/messages", verifyJWT, getChatMessages);
+
+router.get("/:chatroomId/read", verifyJWT, markChatAsRead);
 
 export default router;

@@ -138,3 +138,23 @@ export const getChatMessages = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
+//marking chat as read
+export const markChatAsRead = async (req, res) => {
+  const { chatRoomId } = req.params;
+  const { userId } = req;
+
+  try {
+    const chatRoom = await ChatRoom.findById(chatRoomId);
+    if (!chatRoom) {
+      res.status(409).json({ message: "chatroom not found" });
+    }
+    if (chatRoom.unreadCount.get(userId)) {
+      chatRoom.unreadCount.set(userId, 0);
+      await chatRoom.save();
+    }
+  } catch (err) {
+    console.log("error while marking chat as read" + err);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};

@@ -20,9 +20,20 @@ export const saveMessage = async (messageData) => {
     });
 
     // 2) Update chat’s lastMessage
-    await ChatRoom.findByIdAndUpdate(chatroomId, {
-      lastMessage: newMessage._id,
-    });
+    const chatRoom = await ChatRoom.findById(chatroomId);
+    if (chatRoom) {
+      chatRoom.lastMessage = newMessage._id;
+
+      chatRoom.participants.forEach((participantId) => {
+        const id = participantId.toString();
+
+        if (id !== sender) {
+          const currentCount = chatRoom.unreadCount.get(id) || 0;
+          chatRoom.unreadCount.set(id, currentCount + 1);
+        }
+      });
+      await chatRoom.save();
+    }
 
     // 3) Return a populated message (sender fields)
     const populatedMessage = await Message.findById(newMessage._id)

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { ChatRoom, Message } from "../../../types";
-import { getMyChatRooms } from "../../../services/chat.service";
+import { getMyChatRooms, markChatAsRead } from "../../../services/chat.service";
 import { ChatList } from "../components/ChatList";
 import { ChatWindow } from "../components/ChatWindow";
 import { UserSearchModal } from "../components/UserSearchModal";
@@ -183,6 +183,25 @@ export const ChatPage: React.FC = () => {
   const handleSelectChat = (room: ChatRoom) => {
     setSelectedChat(room);
     if (!user) return;
+
+    const currentUnreadCount =
+      chatRooms.find((r) => r._id === room._id)?.unreadCount?.[user._id] || 0;
+    if (currentUnreadCount > 0) {
+      const originalRooms = chatRooms;
+
+      setChatRooms((prev) =>
+        prev.map((r) =>
+          r._id === room._id
+            ? { ...r, unreadCount: { ...r.unreadCount, [user._id]: 0 } }
+            : r
+        )
+      );
+
+      markChatAsRead(room._id).catch((err) => {
+        console.error("Failed to mark chat as read on server:", err);
+        setChatRooms(originalRooms);
+      });
+    }
     setChatRooms((prevRooms) => {
       const roomIndex = prevRooms.findIndex((r) => r._id === room._id);
       if (
