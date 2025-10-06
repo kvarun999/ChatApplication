@@ -4,6 +4,10 @@ import { useAuth } from "../../../context/AuthProvider";
 import { ChatRoomListItem } from "./ChatRoomListItem";
 import { Link } from "react-router-dom";
 
+// Define the fallback avatar URL
+const DEFAULT_FALLBACK_AVATAR =
+  "https://api.dicebear.com/8.x/adventurer/svg?seed=User";
+
 // A simple SVG icon for the profile button
 const UserIcon = () => (
   <svg
@@ -58,16 +62,11 @@ export const ChatList: React.FC<ChatListProps> = ({
             className="p-1 rounded-full hover:bg-gray-200 transition"
           >
             <img
-              src={
-                user?.avatarUrl && user.avatarUrl.trim() !== ""
-                  ? user.avatarUrl
-                  : "https://static.productionready.io/images/smiley-cyrus.jpg"
-              }
+              src={user?.avatarUrl} // Rely on user.avatarUrl (which has the DB default)
               alt="user"
               className="w-10 h-10 rounded-full object-cover"
               onError={(e) => {
-                e.currentTarget.src =
-                  "https://static.productionready.io/images/smiley-cyrus.jpg";
+                e.currentTarget.src = DEFAULT_FALLBACK_AVATAR; // Fallback to external URL
               }}
             />
           </Link>

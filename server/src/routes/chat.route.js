@@ -18,6 +18,6 @@ router.get("/", verifyJWT, getChatRooms);
 // NEW: Route to get all messages for a specific chat room
 router.get("/:chatroomId/messages", verifyJWT, getChatMessages);
 
-router.get("/:chatroomId/read", verifyJWT, markChatAsRead);
+router.put("/:chatroomId/read", verifyJWT, markChatAsRead);
 
 export default router;

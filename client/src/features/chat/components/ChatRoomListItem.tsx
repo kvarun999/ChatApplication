@@ -19,6 +19,10 @@ function formatRelativeTime(date: string | Date | null): string {
   return `${diffDays}d ago`;
 }
 
+// Define the fallback avatar URL
+const DEFAULT_FALLBACK_AVATAR =
+  "https://api.dicebear.com/8.x/adventurer/svg?seed=User";
+
 interface ChatRoomListItemProps {
   room: ChatRoom;
   isSelected: boolean;
@@ -46,10 +50,6 @@ export const ChatRoomListItem: React.FC<ChatRoomListItemProps> = ({
     ? onlineUsers.has(otherParticipant._id)
     : false;
 
-  // ✅ Define the default avatar URL
-  const defaultAvatar =
-    "https://static.productionready.io/images/smiley-cyrus.jpg";
-
   return (
     <div
       onClick={() => onSelect(room)}
@@ -59,18 +59,13 @@ export const ChatRoomListItem: React.FC<ChatRoomListItemProps> = ({
     >
       {/* --- AVATAR SECTION --- */}
       <div className="relative flex-shrink-0 mr-3">
-        {/* ✅ Simplified img tag with a fallback src */}
+        {/* The src relies on the object, and onError provides a hardcoded backup */}
         <img
-          src={
-            otherParticipant?.avatarUrl &&
-            otherParticipant.avatarUrl.trim() !== ""
-              ? otherParticipant.avatarUrl
-              : defaultAvatar
-          }
+          src={otherParticipant?.avatarUrl}
           alt={otherParticipantName || "User Avatar"}
           className="w-12 h-12 rounded-full object-cover"
           onError={(e) => {
-            e.currentTarget.src = defaultAvatar;
+            e.currentTarget.src = DEFAULT_FALLBACK_AVATAR;
           }}
         />
 

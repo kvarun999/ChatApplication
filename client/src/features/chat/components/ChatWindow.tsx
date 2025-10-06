@@ -13,6 +13,10 @@ interface ChatWindowProps {
   onOptimisticUpdate: (chatroomId: string, message: MessageType) => void;
 }
 
+// Define the fallback avatar URL
+const DEFAULT_FALLBACK_AVATAR =
+  "https://api.dicebear.com/8.x/adventurer/svg?seed=User";
+
 export const ChatWindow: React.FC<ChatWindowProps> = ({
   chatRoom,
   onOptimisticUpdate,
@@ -25,8 +29,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const { onlineUsers } = usePresence();
 
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
-  const defaultAvatar =
-    "https://static.productionready.io/images/smiley-cyrus.jpg";
+
+  // Removed hardcoded defaultAvatar
 
   // Reset messages when chat room changes
   useEffect(() => {
@@ -335,16 +339,11 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       {/* Header */}
       <div className="p-4 border-b border-gray-300 bg-gray-100 flex items-center gap-4 flex-shrink-0">
         <img
-          src={
-            otherParticipant?.avatarUrl &&
-            otherParticipant.avatarUrl.trim() !== ""
-              ? otherParticipant.avatarUrl
-              : defaultAvatar
-          }
+          src={otherParticipant?.avatarUrl}
           alt="user avatar"
           className="w-12 h-12 rounded-full object-cover"
           onError={(e) => {
-            e.currentTarget.src = defaultAvatar;
+            e.currentTarget.src = DEFAULT_FALLBACK_AVATAR;
           }}
         />
         <div>

@@ -141,20 +141,24 @@ export const getChatMessages = async (req, res) => {
 
 //marking chat as read
 export const markChatAsRead = async (req, res) => {
-  const { chatRoomId } = req.params;
+  const { chatroomId } = req.params;
   const { userId } = req;
 
   try {
-    const chatRoom = await ChatRoom.findById(chatRoomId);
+    const chatRoom = await ChatRoom.findById(chatroomId);
     if (!chatRoom) {
-      res.status(409).json({ message: "chatroom not found" });
+      return res.status(404).json({ message: "Chat room not found" });
     }
-    if (chatRoom.unreadCount.get(userId)) {
+
+    if (chatRoom.unreadCount.has(userId)) {
       chatRoom.unreadCount.set(userId, 0);
       await chatRoom.save();
     }
+
+    // ✅ Send a success response back to the client
+    res.status(200).json({ message: "Chat marked as read." });
   } catch (err) {
-    console.log("error while marking chat as read" + err);
+    console.error("Error marking chat as read:", err);
     res.status(500).json({ message: "Internal Server Error" });
   }
 };

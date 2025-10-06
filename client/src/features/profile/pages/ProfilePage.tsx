@@ -25,8 +25,15 @@ const BackArrowIcon = () => (
   </svg>
 );
 
+// Define the fallback avatar URL
+const DEFAULT_FALLBACK_AVATAR =
+  "https://api.dicebear.com/8.x/adventurer/svg?seed=User";
+
 export const ProfilePage: React.FC = () => {
   const { user, updateUser } = useAuth();
+
+  // Rely on the user object's avatarUrl, and use the fallback only if it's null/undefined on first render
+  const initialAvatarUrl = user?.avatarUrl || DEFAULT_FALLBACK_AVATAR;
 
   const [newName, setNewName] = useState(user?.username || "");
   const [usernameSuccess, setUsernameSuccess] = useState("");
@@ -41,21 +48,17 @@ export const ProfilePage: React.FC = () => {
   const [isPasswordLoading, setIsPasswordLoading] = useState(false);
 
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [avatarPreview, setAvatarPreview] = useState<string>(
-    user?.avatarUrl ||
-      "https://static.productionready.io/images/smiley-cyrus.jpg"
-  );
+  const [avatarPreview, setAvatarPreview] = useState<string>(initialAvatarUrl);
   const [avatarError, setAvatarError] = useState("");
   const [avatarSuccess, setAvatarSuccess] = useState("");
   const [isAvatarLoading, setIsAvatarLoading] = useState(false);
 
   useEffect(() => {
-    if (user?.avatarUrl && user.avatarUrl.trim() !== "") {
+    // Update preview when user's avatarUrl changes (e.g., after successful update)
+    if (user?.avatarUrl) {
       setAvatarPreview(user.avatarUrl);
     } else {
-      setAvatarPreview(
-        "https://static.productionready.io/images/smiley-cyrus.jpg"
-      );
+      setAvatarPreview(DEFAULT_FALLBACK_AVATAR);
     }
   }, [user?.avatarUrl]);
 
@@ -165,16 +168,11 @@ export const ProfilePage: React.FC = () => {
             className="flex flex-col items-center space-y-4"
           >
             <img
-              src={
-                avatarPreview && avatarPreview.trim() !== ""
-                  ? avatarPreview
-                  : "https://static.productionready.io/images/smiley-cyrus.jpg"
-              }
+              src={avatarPreview}
               alt="Profile Avatar"
               className="w-32 h-32 rounded-full object-cover border-4 border-gray-200"
               onError={(e) => {
-                e.currentTarget.src =
-                  "https://static.productionready.io/images/smiley-cyrus.jpg";
+                e.currentTarget.src = DEFAULT_FALLBACK_AVATAR; // Final fallback to external URL
               }}
             />
 

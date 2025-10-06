@@ -32,5 +32,5 @@ export const createChatRoom = async (
 };
 
 export const markChatAsRead = async (chatRoomId: string): Promise<void> => {
-  await api.post(`/api/chats/${chatRoomId}/read`);
+  await api.put(`/api/chats/${chatRoomId}/read`);
 };

@@ -31,7 +31,7 @@ const userSchema = new mongoose.Schema(
     },
     avatarUrl: {
       type: String,
-      default: "https://static-asset.example.com/avatars/default.png", // replace with your CDN/static asset
+      default: "https://api.dicebear.com/8.x/adventurer/svg?seed=User", // replace with your CDN/static asset
     },
     lastSeen: {
       type: Date,
