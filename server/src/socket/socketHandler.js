@@ -8,6 +8,7 @@ import ChatRoom from "../models/Chatroom.js";
 import Message from "../models/Message.js";
 
 const onlineUsers = new Map();
+let ioInstance;
 
 export const initializeSocketServer = (server) => {
   const io = new Server(server, {
@@ -16,6 +17,7 @@ export const initializeSocketServer = (server) => {
       methods: ["GET", "POST"],
     },
   });
+  ioInstance = io;
 
   io.use((socket, next) => {
     const token = socket.handshake.auth.token;
@@ -145,6 +147,8 @@ export const initializeSocketServer = (server) => {
       }
     });
 
+    socket.on("send_file_message", async (fileMetaData) => {});
+
     socket.on("disconnect", () => {
       console.log(`❌ User disconnected: ${socket.id}`);
       onlineUsers.delete(socket.userId.toString());
@@ -153,4 +157,10 @@ export const initializeSocketServer = (server) => {
   });
 
   return io;
+};
+
+export const getIo = () => ioInstance;
+
+export const getOnlineUserSocketId = (userId) => {
+  return onlineUsers.get(userId.toString());
 };

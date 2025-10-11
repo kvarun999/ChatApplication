@@ -2,6 +2,8 @@ import ChatRoom from "../models/Chatroom.js";
 import User from "../models/User.js";
 import mongoose from "mongoose";
 import Message from "../models/Message.js";
+import { saveFileMessage } from "./message.controller.js";
+import { getIo } from "../socket/socketHandler.js";
 
 export const createChatRoom = async (req, res) => {
   const { recipientId } = req.body;
@@ -160,5 +162,125 @@ export const markChatAsRead = async (req, res) => {
   } catch (err) {
     console.error("Error marking chat as read:", err);
     res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+export const handleFileUpload = async (req, res) => {
+  if (
+    !req.files ||
+    req.files.length === 0 ||
+    !req.body ||
+    !req.params.chatroomId
+  ) {
+    return res
+      .status(400)
+      .json({ message: "No file was uploaded or missing message data." });
+  }
+
+  // NOTE: req.files is an array of the chunks saved by multer.
+  // We only use the data of the first chunk (index 0) to get general file info.
+  const firstChunk = req.files[0];
+
+  // Destructure the encryption metadata from the request body
+  const {
+    header,
+    keyNonce,
+    encryptedKeyForRecipient,
+    encryptedKeyForSelf,
+    keyId,
+    originalFilename,
+  } = req.body;
+
+  // Validation for required encryption metadata
+  if (
+    !header ||
+    !keyNonce ||
+    !encryptedKeyForRecipient ||
+    !encryptedKeyForSelf ||
+    !keyId
+  ) {
+    return res.status(400).json({
+      message: "Missing required encryption metadata in request body.",
+    });
+  }
+
+  const chatroomId = req.params.chatroomId;
+  const safeKeyId = keyId.replace(/\+/g, "-").replace(/\//g, "_");
+  const clientFileName = `${safeKeyId}.chunk0.enc`;
+
+  try {
+    console.log(req.files);
+    // 1. Construct the file URL (NOTE: This URL points to the FIRST CHUNK only)
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+    const fileUrl = `${baseUrl}/uploads/messages/${clientFileName}`;
+
+    // 2. Prepare the data payload for the message controller
+    const messageData = {
+      chatroomId,
+      sender: req.userId,
+      type: firstChunk.mimetype.startsWith("image/") ? "image" : "file",
+      fileMetadata: {
+        filename: originalFilename,
+        fileUrl, // Points to chunk 0
+        mimetype: firstChunk.mimetype,
+        size: firstChunk.size,
+        header,
+        keyNonce,
+        encryptedFileKeyForRecipient: encryptedKeyForRecipient,
+        encryptedFileKeyForSender: encryptedKeyForSelf,
+        keyId,
+      },
+    };
+
+    // 3. Save the message and get the populated message object back
+    const savedMessage = await saveFileMessage(messageData);
+
+    if (!savedMessage) {
+      throw new Error("Failed to save message to database.");
+    }
+
+    // 2. REAL-TIME DELIVERY (CRITICAL STEP)
+    // NOTE: Replace `getIo()` and `onlineUsers` access with your actual implementation
+    // For this example, we rely on the implementation detailed in Step 1.
+    const io = getIo();
+
+    // a) Notify sender's other devices/tabs (confirmation)
+    io.to(req.userId.toString()).emit(
+      "message_sent_confirmation",
+      savedMessage
+    );
+
+    // b) Broadcast to recipients actively in the chat room
+    io.to(chatroomId).emit("receive_message", savedMessage);
+
+    // c) Send lightweight notification to recipients NOT in the room (for ChatList update)
+    const room = await ChatRoom.findById(chatroomId);
+    if (room) {
+      const recipients = room.participants.filter(
+        (p) => p.toString() !== req.userId.toString()
+      );
+
+      recipients.forEach((recipientId) => {
+        // Using `new_message_notification` event, same as for text messages
+        io.to(recipientId.toString()).emit("new_message_notification", {
+          chatroomId: savedMessage.chatroomId,
+          message: savedMessage,
+        });
+      });
+    }
+
+    // 3. Respond to Client (File upload success)
+    res.status(200).json({
+      message: "File uploaded successfully.",
+      _id: savedMessage._id,
+      createdAt: savedMessage.createdAt,
+      type: savedMessage.type,
+      fileMetadata: savedMessage.fileMetadata,
+    });
+  } catch (err) {
+    console.error("Error saving file message:", err);
+    return res
+      .status(500)
+      .json({ message: "Internal server error during message saving." });
   }
 };

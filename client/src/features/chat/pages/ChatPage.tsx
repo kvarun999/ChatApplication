@@ -8,6 +8,8 @@ import { useSocket } from "../../../context/SocketProvider";
 import { decryptMessage } from "../../../services/crypto.service";
 import { useAuth } from "../../../context/AuthProvider";
 
+// client/src/features/chat/pages/ChatPage.tsx
+
 // Helper function to process a room for display
 const processRoomForPreview = async (
   room: ChatRoom,
@@ -20,34 +22,54 @@ const processRoomForPreview = async (
     newRoom.lastMessageTimestamp = newRoom.createdAt;
     return newRoom;
   }
+
+  const {
+    sender,
+    encryptedTextForSender,
+    encryptedTextForRecipient,
+    createdAt,
+    type, // ✅ Include type
+    fileMetadata, // ✅ Include fileMetadata
+  } = newRoom.lastMessage;
+
+  const isMyMessage = sender._id === userId;
+  const prefix = isMyMessage ? "You: " : "";
+
   try {
-    const {
-      sender,
-      encryptedTextForSender,
-      encryptedTextForRecipient,
-      createdAt,
-    } = newRoom.lastMessage;
-    const isMyMessage = sender._id === userId;
+    // 💡 NEW LOGIC BRANCHING: Handle file/image messages
+    if (type !== "text" && fileMetadata) {
+      newRoom.lastMessagePreview = `${prefix}[${type === "image" ? "Image" : "File"}: ${fileMetadata.filename}]`;
+      newRoom.lastMessageTimestamp = createdAt;
+      return newRoom; // Early exit for files
+    }
+
+    // Existing TEXT message decryption logic
     const encryptedStr = isMyMessage
       ? encryptedTextForSender
       : encryptedTextForRecipient;
+
+    if (!encryptedStr) throw new Error("Missing encrypted text for preview");
+
     const { ciphertextBase64, nonceBase64 } = JSON.parse(encryptedStr);
+
+    // Apply trimming defensively before calling the decryption function
     const decryptedText = await decryptMessage(
-      ciphertextBase64,
-      nonceBase64,
-      sender.publicKey,
-      privateKey
+      ciphertextBase64.trim(),
+      nonceBase64.trim(),
+      sender.publicKey.trim(),
+      privateKey.trim()
     );
-    const prefix = isMyMessage ? "You: " : "";
+
     newRoom.lastMessagePreview = `${prefix}${decryptedText}`;
     newRoom.lastMessageTimestamp = createdAt;
   } catch (e) {
-    newRoom.lastMessagePreview = "[Encrypted Message]";
+    newRoom.lastMessagePreview = `[${isMyMessage ? "Your" : "Encrypted"} ${type || "Message"}]`;
     newRoom.lastMessageTimestamp = newRoom.lastMessage.createdAt;
   }
   return newRoom;
 };
 
+// ... (rest of the file remains the same) ...
 export const ChatPage: React.FC = () => {
   const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
   const [selectedChat, setSelectedChat] = useState<ChatRoom | null>(null);
@@ -107,6 +129,12 @@ export const ChatPage: React.FC = () => {
 
         // Decrypt the preview text for the notification
         const { encryptedTextForRecipient, sender } = message;
+        if (!encryptedTextForRecipient) {
+          console.error(
+            "Missing encryptedTextForRecipient in message notification"
+          );
+          return prevRooms;
+        }
         const { ciphertextBase64, nonceBase64 } = JSON.parse(
           encryptedTextForRecipient
         );

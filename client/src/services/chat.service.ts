@@ -34,3 +34,20 @@ export const createChatRoom = async (
 export const markChatAsRead = async (chatRoomId: string): Promise<void> => {
   await api.put(`/api/chats/${chatRoomId}/read`);
 };
+
+export const sendEncryptedFile = async (
+  formData: FormData,
+  chatroomId: string
+) => {
+  const res = await api.post(`/api/chats/${chatroomId}/files`, formData);
+
+  if (res.status < 200 || res.status >= 300) {
+    console.error("❌ File upload failed:", res.data);
+    throw new Error(
+      "File upload failed: " + (res.data?.message || "Unknown error")
+    );
+  }
+
+  console.log("✅ File uploaded:", res.data);
+  return res.data;
+};

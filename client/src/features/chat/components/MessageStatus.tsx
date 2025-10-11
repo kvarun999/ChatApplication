@@ -1,9 +1,14 @@
 import React from "react";
 
+// client/src/features/chat/components/MessageStatus.tsx
+
 interface MessageStatusProps {
-  status: "sent" | "delivered" | "read";
+  // ✅ FIX: Update the status prop type to match your global Message type
+  status: "sending" | "sent" | "delivered" | "read" | "failed"; // <-- CHANGE THIS LINE
   isMe: boolean;
 }
+
+// ... (rest of the MessageStatus component code)
 
 const SentTick = () => (
   <svg

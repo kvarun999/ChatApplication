@@ -1,19 +1,32 @@
 import { User } from "./user.types";
 
+export interface FileMetadata {
+  filename: string;
+  fileUrl: string; // URL to the encrypted file chunk (chunk 0)
+  mimetype: string;
+  size: number;
+  header: string; // libsodium stream header
+  keyNonce: string; // Nonce used to wrap the symmetric key
+  encryptedFileKeyForRecipient: string; // Asymmetrically encrypted symmetric key
+  encryptedFileKeyForSender: string;
+  keyId: string;
+  totalChunks: number;
+}
+
 // This interface defines the shape of a single Message object
 export interface Message {
   _id: string;
   chatroomId: string;
-  sender: User; // RENAMED: from senderId to sender to match component usage and backend population
-  encryptedTextForRecipient: string;
-  encryptedTextForSender: string;
-  text?: string; // ADDED: Optional field to hold the decrypted message for the UI
-  status: "sent" | "delivered" | "read";
-  type?: "text" | "image" | "file";
+  sender: User;
+  encryptedTextForRecipient?: string; // Made optional for file messages
+  encryptedTextForSender?: string; // Made optional for file messages
+  text?: string; // Holds the decrypted message, or file name for files
+  status: "sending" | "sent" | "delivered" | "read" | "failed";
+  type: "text" | "image" | "file"; // Updated enum
+  fileMetadata?: FileMetadata; // ✅ NEW: Optional field for file messages
   createdAt: string;
   updatedAt?: string;
 }
-
 // This interface defines the shape of a ChatRoom object
 export interface ChatRoom {
   _id: string;
