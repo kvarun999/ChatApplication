@@ -83,7 +83,7 @@ export const initializeSocketServer = (server) => {
 
     // Listens for when a user opens a chat and reads the messages
     socket.on("messages_read", async ({ chatroomId, readerId }) => {
-      // Find all messages in the chat that were not sent by the reader and are not yet read
+      // 🛑 FIX 1: Find all messages and update their status to 'read' (existing logic)
       const messagesToUpdate = await Message.find({
         chatroomId,
         sender: { $ne: readerId },
@@ -96,6 +96,18 @@ export const initializeSocketServer = (server) => {
           { _id: { $in: messagesToUpdate.map((m) => m._id) } },
           { $set: { status: "read" } }
         );
+
+        // 🛑 FIX 2: UPDATE CHATROOM COUNT TO ZERO IN DATABASE
+        const chatRoom = await ChatRoom.findById(chatroomId);
+        if (chatRoom) {
+          if (chatRoom.unreadCount && chatRoom.unreadCount.has(readerId)) {
+            chatRoom.unreadCount.set(readerId, 0);
+            await chatRoom.save(); // PERMANENTLY set the count to 0
+            console.log(
+              `Chatroom ${chatroomId} count zeroed for ${readerId} via socket.`
+            );
+          }
+        }
 
         const senderSocketId = onlineUsers.get(senderId);
         if (senderSocketId) {
